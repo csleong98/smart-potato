@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message, Conversation, OnboardingMode } from './types';
-import { MockAIService } from './services/aiService';
+import { AIService, MockAIService } from './services/aiService';
 import Sidebar from './components/Sidebar';
 import WelcomeScreen from './components/WelcomeScreen';
 import ChatInterface from './components/ChatInterface';
@@ -15,7 +15,18 @@ function App() {
   const [buildStep, setBuildStep] = useState(0);
   
   // AI Service instance (memoized to prevent recreation on every render)
-  const aiService = useMemo(() => new MockAIService(), []);
+  const aiService = useMemo(() => {
+    const apiKey = process.env.REACT_APP_OPENROUTER_API_KEY;
+    
+    if (apiKey && apiKey !== 'your_api_key_here') {
+      console.log('Using OpenRouter API with DeepSeek R1 (Free)');
+      return new AIService(apiKey);
+    } else {
+      // Fallback to mock service if no API key is configured
+      console.warn('No API key found. Using mock AI service. Set REACT_APP_OPENROUTER_API_KEY in your .env file.');
+      return new MockAIService();
+    }
+  }, []);
 
   // Get active conversation
   const activeConversation = conversations.find(c => c.id === activeConversationId);

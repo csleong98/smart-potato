@@ -81,6 +81,8 @@ export class AIService {
   }
 }
 
+
+
 // For demo purposes, we'll use a mock service when no API key is provided
 export class MockAIService extends AIService {
   constructor() {
@@ -110,4 +112,4 @@ export class MockAIService extends AIService {
 
     return responses[step as keyof typeof responses] || 'Thank you for your interest!';
   }
-} 
+}
