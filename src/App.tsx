@@ -12,6 +12,7 @@ function App() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [currentMode, setCurrentMode] = useState<OnboardingMode>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
   const [buildStep, setBuildStep] = useState(0);
   
   // AI Service instance (memoized to prevent recreation on every render)
@@ -50,6 +51,13 @@ function App() {
     }
   }, [activeConversationId]);
 
+  // Handle deleting the active conversation
+  const handleDeleteActiveConversation = useCallback(() => {
+    if (activeConversationId) {
+      deleteConversation(activeConversationId);
+    }
+  }, [activeConversationId, deleteConversation]);
+
   // Add message to conversation
   const addMessage = useCallback((conversationId: string, message: Message) => {
     setConversations(prev => prev.map(conv => {
@@ -58,7 +66,6 @@ function App() {
         return {
           ...conv,
           messages: updatedMessages,
-          title: updatedMessages.length === 1 ? message.content.slice(0, 50) + '...' : conv.title,
           updatedAt: new Date()
         };
       }
@@ -73,7 +80,7 @@ function App() {
     // Create new conversation for the selected mode
     const newConversation: Conversation = {
       id: uuidv4(),
-      title: mode ? `${mode.charAt(0).toUpperCase() + mode.slice(1)} Session` : 'New Chat',
+      title: 'New Chat', // Always start with "New Chat"
       messages: [],
       createdAt: new Date(),
       updatedAt: new Date()
@@ -131,6 +138,11 @@ function App() {
     };
     addMessage(activeConversationId, userMessage);
 
+    // Check if this is the first user message and auto-generate title
+    const conversation = conversations.find(c => c.id === activeConversationId);
+    const isFirstUserMessage = conversation && 
+      conversation.messages.filter(msg => msg.sender === 'user').length === 0;
+
     // Get AI response
     setIsLoading(true);
     try {
@@ -151,12 +163,33 @@ function App() {
         timestamp: new Date()
       };
       addMessage(activeConversationId, aiMessage);
+
+      // Auto-generate title after first user message
+      if (isFirstUserMessage) {
+        setTimeout(async () => {
+          try {
+            const newTitle = await aiService.generateChatTitle([userMessage]);
+            setConversations(prev => prev.map(conv => {
+              if (conv.id === activeConversationId) {
+                return {
+                  ...conv,
+                  title: newTitle,
+                  updatedAt: new Date()
+                };
+              }
+              return conv;
+            }));
+          } catch (error) {
+            console.error('Error auto-generating title:', error);
+          }
+        }, 100); // Small delay to ensure UI updates smoothly
+      }
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [activeConversationId, addMessage, aiService, currentMode, buildStep, activeConversation]);
+  }, [activeConversationId, addMessage, aiService, currentMode, buildStep, activeConversation, conversations]);
 
   // Handle starting a random chat
   const handleStartChat = useCallback(() => {
@@ -169,6 +202,34 @@ function App() {
     setCurrentMode(null);
     setBuildStep(0);
   }, []);
+
+  // Generate AI title for conversation
+  const generateTitle = useCallback(async () => {
+    if (!activeConversationId || !activeConversation || activeConversation.messages.length === 0) {
+      return;
+    }
+
+    setIsGeneratingTitle(true);
+    try {
+      const newTitle = await aiService.generateChatTitle(activeConversation.messages);
+      
+      // Update the conversation title
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === activeConversationId) {
+          return {
+            ...conv,
+            title: newTitle,
+            updatedAt: new Date()
+          };
+        }
+        return conv;
+      }));
+    } catch (error) {
+      console.error('Error generating title:', error);
+    } finally {
+      setIsGeneratingTitle(false);
+    }
+  }, [activeConversationId, activeConversation, aiService]);
 
   // Determine what to show in the main area
   const showWelcome = !activeConversationId;
@@ -196,8 +257,11 @@ function App() {
 
         {showChat && (
           <ChatInterface
-            messages={activeConversation.messages}
+            conversation={activeConversation}
             onSendMessage={handleSendMessage}
+            onDeleteChat={handleDeleteActiveConversation}
+            onGenerateTitle={generateTitle}
+            isGeneratingTitle={isGeneratingTitle}
             isLoading={isLoading}
             placeholder={
               currentMode === 'build' 

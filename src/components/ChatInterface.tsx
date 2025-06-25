@@ -1,17 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Message } from '../types';
+import { Conversation } from '../types';
 import MessageBubble from './MessageBubble';
+import ChatHeader from './ChatHeader';
 
 interface ChatInterfaceProps {
-  messages: Message[];
+  conversation: Conversation;
   onSendMessage: (content: string) => void;
+  onDeleteChat: () => void;
+  onGenerateTitle?: () => void;
+  isGeneratingTitle?: boolean;
   isLoading: boolean;
   placeholder?: string;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
-  messages,
+  conversation,
   onSendMessage,
+  onDeleteChat,
+  onGenerateTitle,
+  isGeneratingTitle = false,
   isLoading,
   placeholder = "Write your message here"
 }) => {
@@ -22,7 +29,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [conversation.messages]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -49,9 +56,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-slate-50 to-white">
+      {/* Chat Header */}
+      <ChatHeader 
+        conversation={conversation}
+        onDeleteChat={onDeleteChat}
+        onGenerateTitle={onGenerateTitle}
+        isGeneratingTitle={isGeneratingTitle}
+      />
+
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
-        {messages.length === 0 ? (
+        {conversation.messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-gray-400">
               <div className="text-4xl mb-4">💬</div>
@@ -61,7 +76,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
         ) : (
           <div className="space-y-4">
-            {messages.map((message) => (
+            {conversation.messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
             
