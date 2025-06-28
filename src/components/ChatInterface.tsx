@@ -11,6 +11,8 @@ interface ChatInterfaceProps {
   isGeneratingTitle?: boolean;
   isLoading: boolean;
   placeholder?: string;
+  showTutorialChoices?: boolean;
+  onTutorialChoice?: (choice: 'tutorial' | 'continue') => void;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -20,7 +22,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onGenerateTitle,
   isGeneratingTitle = false,
   isLoading,
-  placeholder = "Write your message here"
+  placeholder = "Write your message here",
+  showTutorialChoices = false,
+  onTutorialChoice
 }) => {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -109,6 +113,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       {/* Input Form */}
       <div className="border-t border-gray-200 bg-white p-4">
+        {/* Tutorial Choice Buttons */}
+        {showTutorialChoices && onTutorialChoice && (
+          <div className="mb-4 flex gap-3 justify-center">
+            <button
+              onClick={() => onTutorialChoice('tutorial')}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-2xl transition-colors duration-200 font-medium"
+            >
+              Yes, teach me prompting
+            </button>
+            <button
+              onClick={() => onTutorialChoice('continue')}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-2xl transition-colors duration-200 font-medium"
+            >
+              No, continue normally
+            </button>
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="flex items-end space-x-3">
           <div className="flex-1">
             <textarea

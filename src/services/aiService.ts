@@ -82,6 +82,66 @@ The difference? Specificity and structure. Try this approach in your next conver
     return this.sendMessage(messages);
   }
 
+  // Create onboarding with tutorial choice
+  async getCreateOnboardingResponse(userAnswer: string, step: number): Promise<string> {
+    const createPrompts = {
+      0: `You are Smart Potato, an AI assistant that helps with creative projects.
+
+Your response MUST be EXACTLY this message:
+
+"Before we start, do you want to learn how to be good at prompting for building projects? Learning the ways of prompting is not only about specificity but also being organised.
+
+You can choose to go through a tutorial with me or ignore this message and type in anything to continue."
+
+NO VARIATIONS ALLOWED - use these exact words.`,
+
+      1: `You are Smart Potato, an expert in teaching effective prompting for software building and development.
+
+The user has chosen: "${userAnswer}"
+
+ANALYZE their choice and respond accordingly:
+
+IF they want the tutorial (contains "yes", "teach", "tutorial", etc.):
+- Focus specifically on SOFTWARE BUILDING prompting techniques
+- Provide actionable, practical advice for coding/development projects
+- Include real examples relevant to software development
+- Structure your response with clear principles they can immediately apply
+- Ask what kind of software project they want to build to personalize further guidance
+
+IF they want to continue normally (contains "no", "continue", "normally", etc.):
+- Provide helpful creative assistance for any type of project
+- Be encouraging and open-ended
+- Ask what they'd like to create without focusing on tutorials
+
+Keep your response engaging, practical, and tailored to their choice. Focus on SOFTWARE BUILDING if they chose the tutorial path.`
+    };
+
+    const systemPrompt = createPrompts[step as keyof typeof createPrompts];
+    if (!systemPrompt) return 'Thank you for using Smart Potato!';
+
+    // Enhanced message structure with system constraints
+    const messages: Message[] = [
+      {
+        id: 'system',
+        content: systemPrompt,
+        sender: 'ai',
+        timestamp: new Date()
+      }
+    ];
+
+    // Only add user input for steps that need it
+    if (step > 0 && userAnswer.trim()) {
+      messages.push({
+        id: 'user-input',
+        content: userAnswer,
+        sender: 'user',
+        timestamp: new Date()
+      });
+    }
+
+    return this.sendMessage(messages);
+  }
+
   // Enhanced general chat with personality constraints
   async sendMessage(messages: Message[]): Promise<string> {
     try {
@@ -226,6 +286,30 @@ export class MockAIService extends AIService {
     return responses[step as keyof typeof responses] || 'Thank you for your interest!';
   }
 
+  async getCreateOnboardingResponse(userAnswer: string, step: number): Promise<string> {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const responses = {
+      0: "Before we start, do you want to learn how to be good at prompting for building projects? Learning the ways of prompting is not only about specificity but also being organised.\n\nYou can choose to go through a tutorial with me or ignore this message and type in anything to continue.",
+      1: (userAnswer: string) => {
+        const lowerAnswer = userAnswer.toLowerCase();
+        
+        // Check if user wants tutorial
+        if (lowerAnswer.includes('yes') || lowerAnswer.includes('tutorial') || lowerAnswer.includes('learn') || lowerAnswer.includes('teach') || lowerAnswer.includes('guide')) {
+          return "Perfect! Let's dive into effective prompting for software building. Here are the key principles for getting better results when building applications:\n\n1. **Be specific about your tech stack** - Instead of 'build an app', say 'build a React app with TypeScript and Firebase'\n2. **Define your architecture** - Specify if you want a single-page app, API, microservices, etc.\n3. **Break down features precisely** - List exact functionality like 'user authentication with email/password and Google OAuth'\n4. **Provide context about complexity** - Mention if you're a beginner or need production-ready code\n5. **Include examples or references** - Reference similar apps or specific libraries you want to use\n\nWhat kind of software project are you looking to build? I'll help you craft the perfect prompting strategy!";
+        } else {
+          return "Great! I'm here to help you create something amazing. Whether you want to build an app, write content, design something, or explore any creative idea - just let me know what's on your mind!\n\nWhat would you like to create today?";
+        }
+      }
+    };
+
+    if (step === 1 && typeof responses[step] === 'function') {
+      return (responses[step] as Function)(userAnswer);
+    }
+
+    return (responses[step as keyof typeof responses] as string) || 'Thank you for using Smart Potato!';
+  }
+
   async generateChatTitle(messages: Message[]): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 800));
     
@@ -241,7 +325,7 @@ export class MockAIService extends AIService {
       // Mock some intelligent title generation
       if (content.includes('build') || content.includes('create')) {
         return 'Build Project Discussion';
-      } else if (content.includes('help') || content.includes('how')) {
+      } else if (content.includes('help') || content.includes('how')) { 
         return 'Help & How-To Chat';
       } else if (content.includes('debug') || content.includes('error') || content.includes('fix')) {
         return 'Debug & Fix Issues';

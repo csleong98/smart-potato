@@ -15,13 +15,6 @@ const OnboardingButtons: React.FC<OnboardingButtonsProps> = ({ onSelectMode }) =
       gradient: 'from-pastel-pink to-pastel-purple'
     },
     {
-      mode: 'search' as OnboardingMode,
-      title: 'Search the web',
-      description: 'Find information and get real-time answers',
-      icon: '🔍',
-      gradient: 'from-pastel-blue to-pastel-green'
-    },
-    {
       mode: 'research' as OnboardingMode,
       title: 'Research about a topic',
       description: 'Deep dive into subjects with comprehensive analysis',
@@ -38,7 +31,7 @@ const OnboardingButtons: React.FC<OnboardingButtonsProps> = ({ onSelectMode }) =
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
       {buttons.map((button) => (
         <button
           key={button.mode}

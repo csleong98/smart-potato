@@ -13,4 +13,4 @@ export interface Conversation {
   updatedAt: Date;
 }
 
-export type OnboardingMode = 'create' | 'search' | 'research' | 'build' | null; 
+export type OnboardingMode = 'create' | 'research' | 'build' | null; 

@@ -14,6 +14,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
   const [buildStep, setBuildStep] = useState(0);
+  const [createStep, setCreateStep] = useState(0);
   
   // AI Service instance (memoized to prevent recreation on every render)
   const aiService = useMemo(() => {
@@ -37,6 +38,7 @@ function App() {
     setActiveConversationId(null);
     setCurrentMode(null);
     setBuildStep(0);
+    setCreateStep(0);
   }, []);
 
   // Delete a conversation
@@ -48,6 +50,7 @@ function App() {
       setActiveConversationId(null);
       setCurrentMode(null);
       setBuildStep(0);
+      setCreateStep(0);
     }
   }, [activeConversationId]);
 
@@ -89,8 +92,20 @@ function App() {
     setConversations(prev => [newConversation, ...prev]);
     setActiveConversationId(newConversation.id);
 
+    // Handle Create something specifically
+    if (mode === 'create') {
+      // Use fixed message instead of AI service
+      const aiMessage: Message = {
+        id: uuidv4(),
+        content: "Before we start, do you want to learn how to be good at prompting for building projects? Learning the ways of prompting is not only about specificity but also being organised.\n\nYou can choose to go through a tutorial with me or ignore this message and type in anything to continue.",
+        sender: 'ai',
+        timestamp: new Date()
+      };
+      addMessage(newConversation.id, aiMessage);
+      setCreateStep(1); // Set to step 1 to show choice buttons
+    }
     // Handle Build workflow specifically
-    if (mode === 'build') {
+    else if (mode === 'build') {
       setIsLoading(true);
       try {
         const response = await aiService.getBuildOnboardingResponse('', 0);
@@ -110,8 +125,6 @@ function App() {
     } else {
       // For other modes, add a generic introduction
       const introMessages = {
-        create: "Hi! I'm Smart Potato. I'd love to help you create something amazing! What would you like to build today?",
-        search: "Hello! I'm Smart Potato. I can help you search for information on the web. What would you like to know about?",
         research: "Welcome! I'm Smart Potato. I'm here to help you dive deep into any topic you're curious about. What would you like to research?"
       };
 
@@ -148,7 +161,12 @@ function App() {
     try {
       let response: string;
       
-      if (currentMode === 'build' && buildStep <= 2) {
+      if (currentMode === 'create' && createStep === 1) {
+        // Don't use AI service for createStep 1 - user should use choice buttons
+        // If they type instead, just continue normally
+        response = "Great! I'm here to help you create something amazing. Whether you want to build an app, write content, design something, or explore any creative idea - just let me know what's on your mind!\n\nWhat would you like to create today?";
+        setCreateStep(2); // Move to normal conversation mode
+      } else if (currentMode === 'build' && buildStep <= 2) {
         response = await aiService.getBuildOnboardingResponse(content, buildStep);
         setBuildStep(prev => prev + 1);
       } else {
@@ -189,7 +207,41 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeConversationId, addMessage, aiService, currentMode, buildStep, activeConversation, conversations]);
+  }, [activeConversationId, addMessage, aiService, currentMode, createStep, buildStep, activeConversation, conversations]);
+
+  // Handle tutorial choice
+  const handleTutorialChoice = useCallback(async (choice: 'tutorial' | 'continue') => {
+    if (!activeConversationId) return;
+
+    // Add user's choice as a message bubble
+    const choiceText = choice === 'tutorial' ? "Yes, teach me prompting" : "No, continue normally";
+    const userMessage: Message = {
+      id: uuidv4(),
+      content: choiceText,
+      sender: 'user',
+      timestamp: new Date()
+    };
+    addMessage(activeConversationId, userMessage);
+
+    setIsLoading(true);
+    try {
+      // Use AI service to generate response based on choice
+      const response = await aiService.getCreateOnboardingResponse(choiceText, 1);
+
+      const aiMessage: Message = {
+        id: uuidv4(),
+        content: response,
+        sender: 'ai',
+        timestamp: new Date()
+      };
+      addMessage(activeConversationId, aiMessage);
+      setCreateStep(2); // Move to normal conversation mode
+    } catch (error) {
+      console.error('Error handling tutorial choice:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeConversationId, addMessage, aiService]);
 
   // Handle starting a random chat
   const handleStartChat = useCallback(() => {
@@ -201,6 +253,7 @@ function App() {
     setActiveConversationId(id);
     setCurrentMode(null);
     setBuildStep(0);
+    setCreateStep(0);
   }, []);
 
   // Generate AI title for conversation
@@ -263,8 +316,14 @@ function App() {
             onGenerateTitle={generateTitle}
             isGeneratingTitle={isGeneratingTitle}
             isLoading={isLoading}
+            showTutorialChoices={currentMode === 'create' && createStep === 1}
+            onTutorialChoice={handleTutorialChoice}
             placeholder={
-              currentMode === 'build' 
+              currentMode === 'create' 
+                ? createStep === 1 
+                  ? "Type your choice or continue normally..."
+                  : "Write your message here"
+                : currentMode === 'build' 
                 ? buildStep === 1 
                   ? "What kind of project are you trying to build?"
                   : "Continue the conversation..."
