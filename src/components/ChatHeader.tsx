@@ -6,6 +6,8 @@ interface ChatHeaderProps {
   onDeleteChat: () => void;
   onGenerateTitle?: () => void;
   isGeneratingTitle?: boolean;
+  showThinkingProcess?: boolean;
+  onToggleThinkingProcess?: (enabled: boolean) => void;
 }
 
 // Token estimation function
@@ -34,7 +36,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   conversation,
   onDeleteChat,
   onGenerateTitle,
-  isGeneratingTitle = false
+  isGeneratingTitle = false,
+  showThinkingProcess = false,
+  onToggleThinkingProcess
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const memoryUsage = calculateMemoryUsage(conversation);
@@ -112,6 +116,32 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Thinking Process Toggle */}
+        {onToggleThinkingProcess && (
+          <div className="flex items-center space-x-2 px-2 py-1 rounded-lg bg-gray-50">
+            <span className={`text-xs font-medium ${showThinkingProcess ? 'text-blue-600' : 'text-gray-500'}`}>
+              🧠 Thinking
+            </span>
+            <button
+              onClick={() => onToggleThinkingProcess(!showThinkingProcess)}
+              className={`relative inline-flex items-center h-5 w-9 rounded-full transition-colors duration-200 ${
+                showThinkingProcess ? 'bg-blue-500' : 'bg-gray-300'
+              }`}
+              title={showThinkingProcess ? 'Disable thinking process capture' : 'Enable thinking process capture'}
+            >
+              <span
+                className={`inline-block w-3 h-3 bg-white rounded-full transition-transform duration-200 ${
+                  showThinkingProcess ? 'translate-x-5' : 'translate-x-1'
+                }`}
+              />
+            </button>
+            {showThinkingProcess && (
+              <span className="text-xs text-blue-600 font-medium">ON</span>
+            )}
+          </div>
+        )}
+
         {/* Generate Title Button - only show if there are messages */}
         {conversation.messages.length > 0 && onGenerateTitle && (
           <button

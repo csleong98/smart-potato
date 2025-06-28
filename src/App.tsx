@@ -15,6 +15,8 @@ function App() {
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
   const [buildStep, setBuildStep] = useState(0);
   const [createStep, setCreateStep] = useState(0);
+  const [researchStep, setResearchStep] = useState(0);
+  const [showThinkingProcess, setShowThinkingProcess] = useState(false);
   
   // AI Service instance (memoized to prevent recreation on every render)
   const aiService = useMemo(() => {
@@ -39,6 +41,7 @@ function App() {
     setCurrentMode(null);
     setBuildStep(0);
     setCreateStep(0);
+    setResearchStep(0);
   }, []);
 
   // Delete a conversation
@@ -51,6 +54,7 @@ function App() {
       setCurrentMode(null);
       setBuildStep(0);
       setCreateStep(0);
+      setResearchStep(0);
     }
   }, [activeConversationId]);
 
@@ -122,15 +126,23 @@ function App() {
       } finally {
         setIsLoading(false);
       }
-    } else {
-      // For other modes, add a generic introduction
-      const introMessages = {
-        research: "Welcome! I'm Smart Potato. I'm here to help you dive deep into any topic you're curious about. What would you like to research?"
-      };
-
+    }
+    // Handle Research workflow specifically
+    else if (mode === 'research') {
+      // Use fixed message for research tutorial intro
       const aiMessage: Message = {
         id: uuidv4(),
-        content: introMessages[mode as keyof typeof introMessages] || "Hi! I'm Smart Potato. How can I help you today?",
+        content: "Welcome! I'm Smart Potato, ready to help you master the art of effective research. Good research prompting can mean the difference between scattered results and targeted, valuable insights.\n\nWhat type of research guidance would you like?",
+        sender: 'ai',
+        timestamp: new Date()
+      };
+      addMessage(newConversation.id, aiMessage);
+      setResearchStep(1); // Set to step 1 to show choice buttons
+    } else {
+      // For other modes, add a generic introduction
+      const aiMessage: Message = {
+        id: uuidv4(),
+        content: "Hi! I'm Smart Potato. How can I help you today?",
         sender: 'ai',
         timestamp: new Date()
       };
@@ -160,12 +172,18 @@ function App() {
     setIsLoading(true);
     try {
       let response: string;
+      let thinkingProcessContent: string | undefined;
       
       if (currentMode === 'create' && createStep === 1) {
         // Don't use AI service for createStep 1 - user should use choice buttons
         // If they type instead, just continue normally
         response = "Great! I'm here to help you create something amazing. Whether you want to build an app, write content, design something, or explore any creative idea - just let me know what's on your mind!\n\nWhat would you like to create today?";
         setCreateStep(2); // Move to normal conversation mode
+      } else if (currentMode === 'research' && researchStep === 1) {
+        // Don't use AI service for researchStep 1 - user should use choice buttons
+        // If they type instead, just continue normally
+        response = "Perfect! I'm here to help you dive deep into any topic you're curious about. Whether you need help with academic research, market analysis, fact-checking, or any other research task - just let me know what you'd like to explore!\n\nWhat would you like to research today?";
+        setResearchStep(2); // Move to normal conversation mode
       } else if (currentMode === 'build' && buildStep <= 2) {
         // Pass full conversation history for context
         const conversationMessages = activeConversation?.messages || [];
@@ -174,14 +192,19 @@ function App() {
         setBuildStep(prev => prev + 1);
       } else {
         const conversationMessages = activeConversation?.messages || [];
-        response = await aiService.sendMessage([...conversationMessages, userMessage]);
+        const result = await aiService.sendMessageWithThinking([...conversationMessages, userMessage], showThinkingProcess);
+        response = result.response;
+        
+        // Store thinking process for use in AI message creation
+        thinkingProcessContent = result.thinking;
       }
 
       const aiMessage: Message = {
         id: uuidv4(),
         content: response,
         sender: 'ai',
-        timestamp: new Date()
+        timestamp: new Date(),
+        thinkingProcess: thinkingProcessContent
       };
       addMessage(activeConversationId, aiMessage);
 
@@ -210,7 +233,7 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeConversationId, addMessage, aiService, currentMode, createStep, buildStep, activeConversation, conversations]);
+  }, [activeConversationId, addMessage, aiService, currentMode, createStep, researchStep, buildStep, activeConversation, conversations, showThinkingProcess]);
 
   // Handle tutorial choice
   const handleTutorialChoice = useCallback(async (choice: 'tutorial' | 'continue') => {
@@ -231,13 +254,25 @@ function App() {
       // Use AI service to generate response based on choice
       const conversationMessages = activeConversation?.messages || [];
       const fullHistory = [...conversationMessages, userMessage];
-      const response = await aiService.getCreateOnboardingResponse(choiceText, 1, fullHistory);
+      
+      let response: string;
+      let thinkingProcessContent: string | undefined;
+      
+      if (showThinkingProcess) {
+        // Get thinking process for onboarding responses too
+        const result = await aiService.getCreateOnboardingResponseWithThinking(choiceText, 1, fullHistory);
+        response = result.response;
+        thinkingProcessContent = result.thinking;
+      } else {
+        response = await aiService.getCreateOnboardingResponse(choiceText, 1, fullHistory);
+      }
 
       const aiMessage: Message = {
         id: uuidv4(),
         content: response,
         sender: 'ai',
-        timestamp: new Date()
+        timestamp: new Date(),
+        thinkingProcess: thinkingProcessContent
       };
       addMessage(activeConversationId, aiMessage);
       setCreateStep(2); // Move to normal conversation mode
@@ -246,7 +281,54 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeConversationId, addMessage, aiService]);
+  }, [activeConversationId, addMessage, aiService, activeConversation?.messages, showThinkingProcess]);
+
+  // Handle research tutorial choice
+  const handleResearchChoice = useCallback(async (choice: string) => {
+    if (!activeConversationId) return;
+
+    // Add user's choice as a message bubble
+    const userMessage: Message = {
+      id: uuidv4(),
+      content: choice,
+      sender: 'user',
+      timestamp: new Date()
+    };
+    addMessage(activeConversationId, userMessage);
+
+    setIsLoading(true);
+    try {
+      // Use AI service to generate response based on choice
+      const conversationMessages = activeConversation?.messages || [];
+      const fullHistory = [...conversationMessages, userMessage];
+      
+      let response: string;
+      let thinkingProcessContent: string | undefined;
+      
+      if (showThinkingProcess) {
+        // Get thinking process for onboarding responses too
+        const result = await aiService.getResearchOnboardingResponseWithThinking(choice, 1, fullHistory);
+        response = result.response;
+        thinkingProcessContent = result.thinking;
+      } else {
+        response = await aiService.getResearchOnboardingResponse(choice, 1, fullHistory);
+      }
+
+      const aiMessage: Message = {
+        id: uuidv4(),
+        content: response,
+        sender: 'ai',
+        timestamp: new Date(),
+        thinkingProcess: thinkingProcessContent
+      };
+      addMessage(activeConversationId, aiMessage);
+      setResearchStep(2); // Move to normal conversation mode
+    } catch (error) {
+      console.error('Error handling research choice:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeConversationId, addMessage, aiService, activeConversation?.messages, showThinkingProcess]);
 
   // Handle starting a random chat
   const handleStartChat = useCallback(() => {
@@ -259,6 +341,7 @@ function App() {
     setCurrentMode(null);
     setBuildStep(0);
     setCreateStep(0);
+    setResearchStep(0);
   }, []);
 
   // Generate AI title for conversation
@@ -323,10 +406,18 @@ function App() {
             isLoading={isLoading}
             showTutorialChoices={currentMode === 'create' && createStep === 1}
             onTutorialChoice={handleTutorialChoice}
+            showResearchChoices={currentMode === 'research' && researchStep === 1}
+            onResearchChoice={handleResearchChoice}
+            showThinkingProcess={showThinkingProcess}
+            onToggleThinkingProcess={setShowThinkingProcess}
             placeholder={
               currentMode === 'create' 
                 ? createStep === 1 
                   ? "Type your choice or continue normally..."
+                  : "Write your message here"
+                : currentMode === 'research'
+                ? researchStep === 1
+                  ? "Choose research guidance or continue normally..."
                   : "Write your message here"
                 : currentMode === 'build' 
                 ? buildStep === 1 

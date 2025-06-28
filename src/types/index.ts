@@ -3,6 +3,7 @@ export interface Message {
   content: string;
   sender: 'user' | 'ai';
   timestamp: Date;
+  thinkingProcess?: string; // Optional thinking process for AI messages
 }
 
 export interface Conversation {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '../types';
@@ -9,6 +9,8 @@ interface MessageBubbleProps {
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   const isUser = message.sender === 'user';
+  const [showThinking, setShowThinking] = useState(false);
+  const hasThinkingProcess = !isUser && message.thinkingProcess;
   
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
@@ -95,6 +97,60 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               {message.content}
             </ReactMarkdown>
           </div>
+          
+          {/* Thinking Process Toggle */}
+          {hasThinkingProcess && (
+            <div className="mt-3 border-t border-gray-200 pt-2">
+              <button
+                onClick={() => setShowThinking(!showThinking)}
+                className="flex items-center space-x-2 text-xs text-blue-600 hover:text-blue-800 transition-colors bg-blue-50 px-2 py-1 rounded-lg"
+              >
+                <span className="text-sm">🧠</span>
+                <svg 
+                  className={`w-3 h-3 transition-transform ${showThinking ? 'rotate-90' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                <span className="font-medium">{showThinking ? 'Hide' : 'Show'} thinking process</span>
+              </button>
+              
+              {showThinking && (
+                <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                  <div className="text-xs text-gray-600 leading-relaxed">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({node, ...props}) => <h1 className="text-sm font-bold mb-1 mt-1" {...props} />,
+                        h2: ({node, ...props}) => <h2 className="text-sm font-bold mb-1 mt-1" {...props} />,
+                        h3: ({node, ...props}) => <h3 className="text-xs font-bold mb-1 mt-1" {...props} />,
+                        p: ({node, ...props}) => <p className="mb-1 last:mb-0" {...props} />,
+                        strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
+                        em: ({node, ...props}) => <em className="italic" {...props} />,
+                        ul: ({node, ...props}) => <ul className="list-disc list-inside mb-1 space-y-0.5" {...props} />,
+                        ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-1 space-y-0.5" {...props} />,
+                        li: ({node, ...props}) => <li className="ml-1" {...props} />,
+                        code: ({node, inline, className, children, ...props}: any) => 
+                          inline ? (
+                            <code className="px-1 py-0.5 rounded text-xs font-mono bg-gray-200 text-gray-700" {...props}>
+                              {children}
+                            </code>
+                          ) : (
+                            <code className="block px-2 py-1 rounded text-xs font-mono bg-gray-200 text-gray-700 overflow-x-auto" {...props}>
+                              {children}
+                            </code>
+                          ),
+                      }}
+                    >
+                      {message.thinkingProcess}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Timestamp */}
           <div className={`text-xs mt-2 ${
