@@ -167,7 +167,10 @@ function App() {
         response = "Great! I'm here to help you create something amazing. Whether you want to build an app, write content, design something, or explore any creative idea - just let me know what's on your mind!\n\nWhat would you like to create today?";
         setCreateStep(2); // Move to normal conversation mode
       } else if (currentMode === 'build' && buildStep <= 2) {
-        response = await aiService.getBuildOnboardingResponse(content, buildStep);
+        // Pass full conversation history for context
+        const conversationMessages = activeConversation?.messages || [];
+        const fullHistory = [...conversationMessages, userMessage];
+        response = await aiService.getBuildOnboardingResponse(content, buildStep, fullHistory);
         setBuildStep(prev => prev + 1);
       } else {
         const conversationMessages = activeConversation?.messages || [];
@@ -226,7 +229,9 @@ function App() {
     setIsLoading(true);
     try {
       // Use AI service to generate response based on choice
-      const response = await aiService.getCreateOnboardingResponse(choiceText, 1);
+      const conversationMessages = activeConversation?.messages || [];
+      const fullHistory = [...conversationMessages, userMessage];
+      const response = await aiService.getCreateOnboardingResponse(choiceText, 1, fullHistory);
 
       const aiMessage: Message = {
         id: uuidv4(),

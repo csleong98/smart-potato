@@ -11,7 +11,7 @@ export class AIService {
   }
 
   // Enhanced onboarding with strict constraints and structure
-  async getBuildOnboardingResponse(userAnswer: string, step: number): Promise<string> {
+  async getBuildOnboardingResponse(userAnswer: string, step: number, conversationHistory?: Message[]): Promise<string> {
     const buildPrompts = {
       0: `You are Smart Potato, an AI assistant that teaches effective prompting for building applications.
 
@@ -24,22 +24,42 @@ STRICT CONSTRAINTS:
 REQUIRED FORMAT:
 [Brief intro] + [Value proposition] + [The exact question above]`,
 
-      1: `You are Smart Potato teaching prompting techniques. User wants to build: "${userAnswer}"
+      1: `You are Smart Potato, an expert in teaching effective prompting for software building and development.
 
-STRICT CONSTRAINTS:
-- Provide EXACTLY 4 tips, numbered 1-4
-- Each tip: 1 sentence max
-- Focus on: specificity, tech stack, features, context
-- End with: "Ready for a concrete example? Tell me more about your specific requirements!"
+The user has chosen: "${userAnswer}"
 
-REQUIRED FORMAT:
-Here are 4 key prompting tips for ${userAnswer} projects:
-1. [Tip about being specific]
-2. [Tip about tech stack]  
-3. [Tip about features]
-4. [Tip about context]
+CRITICAL INSTRUCTIONS - FOLLOW EXACTLY:
 
-Ready for a concrete example? Tell me more about your specific requirements!`,
+IF they want the tutorial (contains "yes", "teach", "tutorial", etc.):
+
+YOU MUST ALWAYS INCLUDE ALL OF THE FOLLOWING:
+1. Brief encouraging intro (1 sentence)
+2. EXACTLY 3-4 principles 
+3. For EACH principle: MANDATORY ❌ BAD and ✅ GOOD prompt examples
+4. A complete copyable template at the end
+5. Closing question about their project
+
+STRICT FORMAT REQUIREMENT:
+**[Principle Name]**
+❌ *Bad:* "[specific bad example]"
+✅ *Good:* "[detailed good example with tech stack]"
+
+MANDATORY TEMPLATE SECTION:
+**Example Template You Can Copy:**
+\`\`\`
+[Actual template they can use]
+\`\`\`
+
+IF they want to continue normally (contains "no", "continue", "normally", etc.):
+- Provide encouraging creative assistance
+- Ask what they'd like to create
+
+ABSOLUTE REQUIREMENTS:
+- NEVER skip the BAD vs GOOD examples
+- ALWAYS include the copyable template with backticks
+- Focus on SOFTWARE BUILDING specifically
+- Use markdown formatting with ** for bold and ❌ ✅ symbols
+- Template MUST be in code block format`,
 
       2: `You are Smart Potato providing a concrete prompting example. User wants: "${userAnswer}" with details: "${userAnswer}"
 
@@ -59,31 +79,46 @@ The difference? Specificity and structure. Try this approach in your next conver
     const systemPrompt = buildPrompts[step as keyof typeof buildPrompts];
     if (!systemPrompt) return 'Thank you for completing the prompting tutorial!';
 
-    // Enhanced message structure with system constraints
-    const messages: Message[] = [
-      {
-        id: 'system',
-        content: systemPrompt,
-        sender: 'ai',
-        timestamp: new Date()
+    // Use conversation history if available, otherwise create new message structure
+    if (conversationHistory && conversationHistory.length > 0) {
+      // Add system prompt and use full conversation history for context
+      const messages: Message[] = [
+        {
+          id: 'system',
+          content: systemPrompt,
+          sender: 'ai',
+          timestamp: new Date()
+        },
+        ...conversationHistory
+      ];
+      return this.sendMessage(messages);
+    } else {
+      // Enhanced message structure with system constraints
+      const messages: Message[] = [
+        {
+          id: 'system',
+          content: systemPrompt,
+          sender: 'ai',
+          timestamp: new Date()
+        }
+      ];
+
+      // Only add user input for steps that need it
+      if (step > 0 && userAnswer.trim()) {
+        messages.push({
+          id: 'user-input',
+          content: userAnswer,
+          sender: 'user',
+          timestamp: new Date()
+        });
       }
-    ];
 
-    // Only add user input for steps that need it
-    if (step > 0 && userAnswer.trim()) {
-      messages.push({
-        id: 'user-input',
-        content: userAnswer,
-        sender: 'user',
-        timestamp: new Date()
-      });
+      return this.sendMessage(messages);
     }
-
-    return this.sendMessage(messages);
   }
 
   // Create onboarding with tutorial choice
-  async getCreateOnboardingResponse(userAnswer: string, step: number): Promise<string> {
+  async getCreateOnboardingResponse(userAnswer: string, step: number, conversationHistory?: Message[]): Promise<string> {
     const createPrompts = {
       0: `You are Smart Potato, an AI assistant that helps with creative projects.
 
@@ -99,47 +134,79 @@ NO VARIATIONS ALLOWED - use these exact words.`,
 
 The user has chosen: "${userAnswer}"
 
-ANALYZE their choice and respond accordingly:
+CRITICAL INSTRUCTIONS - FOLLOW EXACTLY:
 
 IF they want the tutorial (contains "yes", "teach", "tutorial", etc.):
-- Focus specifically on SOFTWARE BUILDING prompting techniques
-- Provide actionable, practical advice for coding/development projects
-- Include real examples relevant to software development
-- Structure your response with clear principles they can immediately apply
-- Ask what kind of software project they want to build to personalize further guidance
+
+YOU MUST ALWAYS INCLUDE ALL OF THE FOLLOWING:
+1. Brief encouraging intro (1 sentence)
+2. EXACTLY 3-4 principles 
+3. For EACH principle: MANDATORY ❌ BAD and ✅ GOOD prompt examples
+4. A complete copyable template at the end
+5. Closing question about their project
+
+STRICT FORMAT REQUIREMENT:
+**[Principle Name]**
+❌ *Bad:* "[specific bad example]"
+✅ *Good:* "[detailed good example with tech stack]"
+
+MANDATORY TEMPLATE SECTION:
+**Example Template You Can Copy:**
+\`\`\`
+[Actual template they can use]
+\`\`\`
 
 IF they want to continue normally (contains "no", "continue", "normally", etc.):
-- Provide helpful creative assistance for any type of project
-- Be encouraging and open-ended
-- Ask what they'd like to create without focusing on tutorials
+- Provide encouraging creative assistance
+- Ask what they'd like to create
 
-Keep your response engaging, practical, and tailored to their choice. Focus on SOFTWARE BUILDING if they chose the tutorial path.`
+ABSOLUTE REQUIREMENTS:
+- NEVER skip the BAD vs GOOD examples
+- ALWAYS include the copyable template with backticks
+- Focus on SOFTWARE BUILDING specifically
+- Use markdown formatting with ** for bold and ❌ ✅ symbols
+- Template MUST be in code block format`
     };
 
     const systemPrompt = createPrompts[step as keyof typeof createPrompts];
     if (!systemPrompt) return 'Thank you for using Smart Potato!';
 
-    // Enhanced message structure with system constraints
-    const messages: Message[] = [
-      {
-        id: 'system',
-        content: systemPrompt,
-        sender: 'ai',
-        timestamp: new Date()
+    // Use conversation history if available, otherwise create new message structure
+    if (conversationHistory && conversationHistory.length > 0) {
+      // Add system prompt and use full conversation history for context
+      const messages: Message[] = [
+        {
+          id: 'system',
+          content: systemPrompt,
+          sender: 'ai',
+          timestamp: new Date()
+        },
+        ...conversationHistory
+      ];
+      return this.sendMessage(messages);
+    } else {
+      // Enhanced message structure with system constraints
+      const messages: Message[] = [
+        {
+          id: 'system',
+          content: systemPrompt,
+          sender: 'ai',
+          timestamp: new Date()
+        }
+      ];
+
+      // Only add user input for steps that need it
+      if (step > 0 && userAnswer.trim()) {
+        messages.push({
+          id: 'user-input',
+          content: userAnswer,
+          sender: 'user',
+          timestamp: new Date()
+        });
       }
-    ];
 
-    // Only add user input for steps that need it
-    if (step > 0 && userAnswer.trim()) {
-      messages.push({
-        id: 'user-input',
-        content: userAnswer,
-        sender: 'user',
-        timestamp: new Date()
-      });
+      return this.sendMessage(messages);
     }
-
-    return this.sendMessage(messages);
   }
 
   // Enhanced general chat with personality constraints
@@ -188,9 +255,9 @@ FORBIDDEN:
         body: JSON.stringify({
           model: MODEL_NAME,
           messages: openAIMessages,
-          temperature: 0.3, // Lower temperature for more consistent responses
-          max_tokens: 500,   // Shorter responses for better UX
-          top_p: 0.9,       // More focused responses
+          temperature: 0.1, // Much lower temperature for more consistent responses
+          max_tokens: 800,   // Increased tokens to ensure complete responses with examples
+          top_p: 0.7,       // More focused responses
         })
       });
 
@@ -274,7 +341,7 @@ export class MockAIService extends AIService {
     return 'Hello! I\'m Smart Potato, your AI assistant.';
   }
 
-  async getBuildOnboardingResponse(userAnswer: string, step: number): Promise<string> {
+  async getBuildOnboardingResponse(userAnswer: string, step: number, conversationHistory?: Message[]): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     const responses = {
@@ -286,7 +353,7 @@ export class MockAIService extends AIService {
     return responses[step as keyof typeof responses] || 'Thank you for your interest!';
   }
 
-  async getCreateOnboardingResponse(userAnswer: string, step: number): Promise<string> {
+  async getCreateOnboardingResponse(userAnswer: string, step: number, conversationHistory?: Message[]): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     const responses = {
@@ -296,7 +363,7 @@ export class MockAIService extends AIService {
         
         // Check if user wants tutorial
         if (lowerAnswer.includes('yes') || lowerAnswer.includes('tutorial') || lowerAnswer.includes('learn') || lowerAnswer.includes('teach') || lowerAnswer.includes('guide')) {
-          return "Perfect! Let's dive into effective prompting for software building. Here are the key principles for getting better results when building applications:\n\n1. **Be specific about your tech stack** - Instead of 'build an app', say 'build a React app with TypeScript and Firebase'\n2. **Define your architecture** - Specify if you want a single-page app, API, microservices, etc.\n3. **Break down features precisely** - List exact functionality like 'user authentication with email/password and Google OAuth'\n4. **Provide context about complexity** - Mention if you're a beginner or need production-ready code\n5. **Include examples or references** - Reference similar apps or specific libraries you want to use\n\nWhat kind of software project are you looking to build? I'll help you craft the perfect prompting strategy!";
+          return "Perfect! Let's dive into effective prompting for software building. Here are the key principles for getting better results when building applications:\n\n**1. Be Specific About Tech Stack**\n❌ *Bad:* \"Help me build a todo app\"\n✅ *Good:* \"Create a React todo app with TypeScript, using Firebase for authentication and Firestore for data storage\"\n\n**2. Define Architecture & Features**\n❌ *Bad:* \"Make it have users and tasks\"\n✅ *Good:* \"Include user registration/login, CRUD operations for tasks, real-time updates, and email notifications for deadlines\"\n\n**3. Specify Code Quality & Context**\n❌ *Bad:* \"Write some code\"\n✅ *Good:* \"Generate production-ready code with error handling, TypeScript interfaces, unit tests, and comprehensive comments\"\n\n**Example Template You Can Use:**\n```\nBuild a [type] application using [tech stack]. \nFeatures needed: [specific list]\nTechnical requirements: [authentication, database, API, etc.]\nCode style: [beginner-friendly/production-ready]\nInclude: [tests, documentation, error handling]\n```\n\nWhat kind of software project are you looking to build? I'll help you craft the perfect prompt using these principles!";
         } else {
           return "Great! I'm here to help you create something amazing. Whether you want to build an app, write content, design something, or explore any creative idea - just let me know what's on your mind!\n\nWhat would you like to create today?";
         }

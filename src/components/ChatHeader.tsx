@@ -8,6 +8,28 @@ interface ChatHeaderProps {
   isGeneratingTitle?: boolean;
 }
 
+// Token estimation function
+const estimateTokens = (text: string): number => {
+  // Rough estimation: ~3.5 characters per token for English text
+  return Math.ceil(text.length / 3.5);
+};
+
+const calculateMemoryUsage = (conversation: Conversation) => {
+  const totalText = conversation.messages
+    .map(msg => msg.content)
+    .join(' ');
+  
+  const usedTokens = estimateTokens(totalText);
+  const maxTokens = 128000; // DeepSeek R1 context window
+  const usagePercentage = Math.min((usedTokens / maxTokens) * 100, 100);
+  
+  return {
+    usedTokens,
+    maxTokens,
+    usagePercentage
+  };
+};
+
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   conversation,
   onDeleteChat,
@@ -15,6 +37,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   isGeneratingTitle = false
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const memoryUsage = calculateMemoryUsage(conversation);
 
   const handleDeleteClick = () => {
     if (showDeleteConfirm) {
@@ -31,6 +54,19 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     if (onGenerateTitle && !isGeneratingTitle) {
       onGenerateTitle();
     }
+  };
+
+  // Color coding for memory usage
+  const getMemoryColor = (percentage: number) => {
+    if (percentage < 60) return 'bg-green-500';
+    if (percentage < 80) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  const getMemoryTextColor = (percentage: number) => {
+    if (percentage < 60) return 'text-green-600';
+    if (percentage < 80) return 'text-yellow-600';
+    return 'text-red-600';
   };
 
   return (
@@ -54,8 +90,28 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         </div>
       </div>
 
-      {/* Right side - Action buttons */}
-      <div className="flex items-center space-x-2 flex-shrink-0">
+      {/* Right side - Memory indicator and Action buttons */}
+      <div className="flex items-center space-x-4 flex-shrink-0">
+        {/* Memory Usage Indicator */}
+        <div className="flex items-center space-x-2">
+          <div 
+            className="flex items-center space-x-2 cursor-help"
+            title={`Memory Usage: ${memoryUsage.usedTokens.toLocaleString()} / ${memoryUsage.maxTokens.toLocaleString()} tokens (${Math.round(memoryUsage.usagePercentage)}%)`}
+          >
+            <span className="text-xs text-gray-500">Memory</span>
+            <div className="flex items-center space-x-1">
+              <span className={`text-xs font-medium ${getMemoryTextColor(memoryUsage.usagePercentage)}`}>
+                {Math.round(memoryUsage.usagePercentage)}%
+              </span>
+              <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-300 ${getMemoryColor(memoryUsage.usagePercentage)}`}
+                  style={{ width: `${memoryUsage.usagePercentage}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
         {/* Generate Title Button - only show if there are messages */}
         {conversation.messages.length > 0 && onGenerateTitle && (
           <button
