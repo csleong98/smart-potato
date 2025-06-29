@@ -335,7 +335,34 @@ function App() {
         setBuildStep(prev => prev + 1);
       } else {
         const conversationMessages = activeConversation?.messages || [];
-        const result = await aiService.sendMessageWithThinking([...conversationMessages, userMessage], showThinkingProcess);
+        
+        // Check if this conversation is in a project and include project memories
+        let contextMessages = [...conversationMessages, userMessage];
+        
+        if (activeConversation?.projectId && activeProject?.memories && activeProject.memories.length > 0) {
+          // Create a system message with project memories as context
+          const memoryContext = activeProject.memories
+            .map(memory => `**${memory.title}**\n${memory.content}`)
+            .join('\n\n---\n\n');
+            
+          const systemContextMessage: Message = {
+            id: 'system-context',
+            content: `You are Smart Potato AI assistant. The user is working in a project and has saved the following information as project memories. ONLY reference these actual memories, do not make up or hallucinate any information:
+
+ACTUAL PROJECT MEMORIES:
+---
+${memoryContext}
+---
+
+When the user asks about their project memories or notes, reference ONLY the content above. If they ask for something not in these memories, say you don't see that specific information in their saved memories.`,
+            sender: 'ai',
+            timestamp: new Date()
+          };
+          
+          contextMessages = [systemContextMessage, ...conversationMessages, userMessage];
+        }
+        
+        const result = await aiService.sendMessageWithThinking(contextMessages, showThinkingProcess);
         response = result.response;
         
         // Store thinking process for use in AI message creation
@@ -376,7 +403,7 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeConversationId, addMessage, aiService, currentMode, createStep, researchStep, buildStep, activeConversation, conversations, showThinkingProcess, isFirstTimeUser, markUserAsReturning]);
+  }, [activeConversationId, addMessage, aiService, currentMode, createStep, researchStep, buildStep, activeConversation, conversations, showThinkingProcess, isFirstTimeUser, markUserAsReturning, activeProject]);
 
   // Handle tutorial choice
   const handleTutorialChoice = useCallback(async (choice: 'tutorial' | 'continue') => {
