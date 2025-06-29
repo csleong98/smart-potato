@@ -697,6 +697,30 @@ When the user asks about their project memories or notes, reference ONLY the con
     ));
   }, []);
 
+  const addConversationsToProject = useCallback((projectId: string, conversationIds: string[]) => {
+    // Update conversations to set their projectId
+    setConversations(prev => prev.map(conv => {
+      if (conversationIds.includes(conv.id)) {
+        return { ...conv, projectId, updatedAt: new Date() };
+      }
+      return conv;
+    }));
+
+    // Update project to add conversation IDs
+    setProjects(prev => prev.map(project => {
+      if (project.id === projectId) {
+        const newChatIds = [...project.chatIds, ...conversationIds];
+        return {
+          ...project,
+          chatIds: newChatIds,
+          lastInteractionAt: new Date(),
+          updatedAt: new Date()
+        };
+      }
+      return project;
+    }));
+  }, []);
+
   const backToProjects = useCallback(() => {
     setActiveProjectId(null);
     setCurrentView('projects');
@@ -781,6 +805,7 @@ When the user asks about their project memories or notes, reference ONLY the con
             onBackToProjects={backToProjects}
             onUpdateProject={updateProject}
             onSelectMode={handleModeSelection}
+            onAddConversationsToProject={addConversationsToProject}
             isFirstTimeUser={isFirstTimeUser}
           />
         )}

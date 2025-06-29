@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Project, Conversation, OnboardingMode } from '../types';
 import ProjectMemorySection from './ProjectMemorySection';
 import ProjectChatsList from './ProjectChatsList';
+import AddChatsToProjectModal from './AddChatsToProjectModal';
 
 interface ProjectViewProps {
   project: Project;
@@ -13,6 +14,7 @@ interface ProjectViewProps {
   onBackToProjects: () => void;
   onUpdateProject: (project: Project) => void;
   onSelectMode: (mode: OnboardingMode) => void;
+  onAddConversationsToProject: (projectId: string, conversationIds: string[]) => void;
   isFirstTimeUser?: boolean;
 }
 
@@ -26,14 +28,19 @@ const ProjectView: React.FC<ProjectViewProps> = ({
   onBackToProjects,
   onUpdateProject,
   onSelectMode,
+  onAddConversationsToProject,
   isFirstTimeUser = false
 }) => {
   const [activeTab, setActiveTab] = useState<'chats' | 'memory'>('chats');
+  const [showAddChatsModal, setShowAddChatsModal] = useState(false);
 
   // Filter conversations that belong to this project
   const projectConversations = conversations.filter(conv => 
     project.chatIds.includes(conv.id)
   );
+
+  // Check if there are any conversations available to add
+  const availableConversationsCount = conversations.filter(conv => !conv.projectId).length;
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -61,7 +68,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({
             </div>
           </div>
 
-          {/* Stats */}
+          {/* Stats and Actions */}
           <div className="flex items-center space-x-6">
             <div className="text-center">
               <div className="text-lg font-bold text-blue-600">{project.chatIds.length}</div>
@@ -71,6 +78,20 @@ const ProjectView: React.FC<ProjectViewProps> = ({
               <div className="text-lg font-bold text-purple-600">{project.memories.length}</div>
               <div className="text-xs text-gray-500">Memories</div>
             </div>
+            
+            {/* Add Existing Chats Button */}
+            {availableConversationsCount > 0 && (
+              <button
+                onClick={() => setShowAddChatsModal(true)}
+                className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg transition-colors text-sm font-medium"
+                title={`Add ${availableConversationsCount} available chat${availableConversationsCount > 1 ? 's' : ''} to this project`}
+              >
+                <svg className="w-4 h-4 mr-1.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Chats ({availableConversationsCount})
+              </button>
+            )}
           </div>
         </div>
 
@@ -119,6 +140,16 @@ const ProjectView: React.FC<ProjectViewProps> = ({
           />
         )}
       </div>
+
+      {/* Add Chats Modal */}
+      {showAddChatsModal && (
+        <AddChatsToProjectModal
+          conversations={conversations}
+          projectId={project.id}
+          onClose={() => setShowAddChatsModal(false)}
+          onAddChats={onAddConversationsToProject}
+        />
+      )}
     </div>
   );
 };
