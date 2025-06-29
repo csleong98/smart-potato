@@ -7,6 +7,9 @@ interface SidebarProps {
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (conversationId: string) => void;
+  onNavigateToProjects?: () => void;
+  onNavigateToChats?: () => void;
+  currentView?: 'chat' | 'projects' | 'project';
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -14,7 +17,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   activeConversationId,
   onSelectConversation,
   onNewConversation,
-  onDeleteConversation
+  onDeleteConversation,
+  onNavigateToProjects,
+  onNavigateToChats,
+  currentView = 'chat'
 }) => {
   return (
     <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
@@ -36,6 +42,42 @@ const Sidebar: React.FC<SidebarProps> = ({
         >
           + New Chat
         </button>
+      </div>
+
+      {/* Navigation */}
+      <div className="px-4 pb-4">
+        <div className="space-y-1">
+          <button
+            onClick={() => (currentView === 'projects' || currentView === 'project') && onNavigateToChats?.()}
+            className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+              currentView === 'chat'
+                ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+            disabled={currentView === 'chat'}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            Chats
+          </button>
+          
+          {onNavigateToProjects && (
+            <button
+              onClick={onNavigateToProjects}
+              className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                currentView === 'projects'
+                  ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Projects
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Conversations List */}

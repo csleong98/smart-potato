@@ -1,10 +1,12 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Message, Conversation, OnboardingMode } from './types';
+import { Message, Conversation, OnboardingMode, Project } from './types';
 import { AIService, MockAIService } from './services/aiService';
 import Sidebar from './components/Sidebar';
 import WelcomeScreen from './components/WelcomeScreen';
 import ChatInterface from './components/ChatInterface';
+import ProjectsPage from './components/ProjectsPage';
+import ProjectView from './components/ProjectView';
 
 function App() {
   // State management
@@ -17,6 +19,19 @@ function App() {
   const [createStep, setCreateStep] = useState(0);
   const [researchStep, setResearchStep] = useState(0);
   const [showThinkingProcess, setShowThinkingProcess] = useState(false);
+  
+  // Projects state
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentView, setCurrentView] = useState<'chat' | 'projects' | 'project'>('chat');
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  
+  // First-time user detection
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(() => {
+    return !localStorage.getItem('smart-potato-visited');
+  });
+  
+  // Tutorial access state
+  const [showTutorialModal, setShowTutorialModal] = useState(false);
   
   // AI Service instance (memoized to prevent recreation on every render)
   const aiService = useMemo(() => {
@@ -32,21 +47,126 @@ function App() {
     }
   }, []);
 
-  // Get active conversation
-  const activeConversation = conversations.find(c => c.id === activeConversationId);
+  // Generate dynamic greeting messages
+  const generateGreeting = useCallback(() => {
+    const greetings = [
+      "Hey there! Ready to dive into something interesting? 🥔",
+      "Hi! What's on your mind today? ✨",
+      "Hello! I'm here to help with whatever you need 🌟",
+      "Hey! Let's explore something amazing together 🚀",
+      "Hi there! What can we discover today? 💭",
+      "Hello! Ready to tackle something new? 🎯",
+      "Hey! I'm excited to help you out 🌈",
+      "Hi! What adventure shall we embark on? 🧭",
+      "Hello there! Let's make something happen 💡",
+      "Hey! What's sparking your curiosity today? ⚡"
+    ];
+    
+    return greetings[Math.floor(Math.random() * greetings.length)];
+  }, []);
 
-  // Create a new conversation (now goes to onboarding screen)
+  // Mark user as no longer first-time
+  const markUserAsReturning = useCallback(() => {
+    localStorage.setItem('smart-potato-visited', 'true');
+    setIsFirstTimeUser(false);
+  }, []);
+
+  // Get active conversation and project
+  const activeConversation = conversations.find(c => c.id === activeConversationId);
+  const activeProject = projects.find(p => p.id === activeProjectId);
+
+  // Create a new conversation
   const createNewConversation = useCallback(() => {
-    setActiveConversationId(null);
+    // For first-time users, just reset state to show tutorial
+    if (isFirstTimeUser) {
+      if (currentView === 'project') {
+        setActiveConversationId(null);
+        setCurrentMode(null);
+        setBuildStep(0);
+        setCreateStep(0);
+        setResearchStep(0);
+      } else {
+        setCurrentView('chat');
+        setActiveConversationId(null);
+        setCurrentMode(null);
+        setBuildStep(0);
+        setCreateStep(0);
+        setResearchStep(0);
+        setActiveProjectId(null);
+      }
+      return;
+    }
+
+    // For returning users, create a chat directly with greeting
+    const newConversation: Conversation = {
+      id: uuidv4(),
+      title: 'New Chat',
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      projectId: currentView === 'project' ? activeProjectId || undefined : undefined
+    };
+
+    // Add greeting message
+    const greetingMessage: Message = {
+      id: uuidv4(),
+      content: generateGreeting(),
+      sender: 'ai',
+      timestamp: new Date()
+    };
+    newConversation.messages = [greetingMessage];
+
+    setConversations(prev => [newConversation, ...prev]);
+    setActiveConversationId(newConversation.id);
+
+    // If we're in a project, add this conversation to the project
+    if (currentView === 'project' && activeProjectId) {
+      setProjects(prev => prev.map(project => {
+        if (project.id === activeProjectId) {
+          return {
+            ...project,
+            chatIds: [newConversation.id, ...project.chatIds],
+            lastInteractionAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+        return project;
+      }));
+    }
+
+    // Reset onboarding states
     setCurrentMode(null);
     setBuildStep(0);
     setCreateStep(0);
     setResearchStep(0);
-  }, []);
+
+    // Ensure we're in the right view
+    if (currentView !== 'project') {
+      setCurrentView('chat');
+      setActiveProjectId(null);
+    }
+  }, [currentView, isFirstTimeUser, activeProjectId, generateGreeting]);
 
   // Delete a conversation
   const deleteConversation = useCallback((conversationId: string) => {
+    // Find the conversation to get its project ID before deletion
+    const conversationToDelete = conversations.find(conv => conv.id === conversationId);
+    
     setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+    
+    // If the conversation belonged to a project, remove it from the project's chatIds
+    if (conversationToDelete?.projectId) {
+      setProjects(prev => prev.map(project => {
+        if (project.id === conversationToDelete.projectId) {
+          return {
+            ...project,
+            chatIds: project.chatIds.filter(chatId => chatId !== conversationId),
+            updatedAt: new Date()
+          };
+        }
+        return project;
+      }));
+    }
     
     // If we're deleting the currently active conversation, go back to welcome screen
     if (activeConversationId === conversationId) {
@@ -56,7 +176,7 @@ function App() {
       setCreateStep(0);
       setResearchStep(0);
     }
-  }, [activeConversationId]);
+  }, [activeConversationId, conversations]);
 
   // Handle deleting the active conversation
   const handleDeleteActiveConversation = useCallback(() => {
@@ -84,17 +204,35 @@ function App() {
   const handleModeSelection = useCallback(async (mode: OnboardingMode) => {
     setCurrentMode(mode);
     
+    // Don't mark user as returning yet - wait until they complete tutorial
+    
     // Create new conversation for the selected mode
     const newConversation: Conversation = {
       id: uuidv4(),
       title: 'New Chat', // Always start with "New Chat"
       messages: [],
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      projectId: activeProjectId || undefined // Add to current project if in project view
     };
     
     setConversations(prev => [newConversation, ...prev]);
     setActiveConversationId(newConversation.id);
+
+    // If we're in a project, add this conversation to the project
+    if (activeProjectId) {
+      setProjects(prev => prev.map(project => {
+        if (project.id === activeProjectId) {
+          return {
+            ...project,
+            chatIds: [newConversation.id, ...project.chatIds],
+            lastInteractionAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+        return project;
+      }));
+    }
 
     // Handle Create something specifically
     if (mode === 'create') {
@@ -148,11 +286,16 @@ function App() {
       };
       addMessage(newConversation.id, aiMessage);
     }
-  }, [addMessage, aiService]);
+  }, [addMessage, aiService, activeProjectId, isFirstTimeUser, markUserAsReturning]);
 
   // Handle message sending
   const handleSendMessage = useCallback(async (content: string) => {
     if (!activeConversationId) return;
+
+    // Mark user as returning when they send their first message
+    if (isFirstTimeUser) {
+      markUserAsReturning();
+    }
 
     // Add user message
     const userMessage: Message = {
@@ -233,11 +376,16 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeConversationId, addMessage, aiService, currentMode, createStep, researchStep, buildStep, activeConversation, conversations, showThinkingProcess]);
+  }, [activeConversationId, addMessage, aiService, currentMode, createStep, researchStep, buildStep, activeConversation, conversations, showThinkingProcess, isFirstTimeUser, markUserAsReturning]);
 
   // Handle tutorial choice
   const handleTutorialChoice = useCallback(async (choice: 'tutorial' | 'continue') => {
     if (!activeConversationId) return;
+
+    // Mark user as returning when they interact with tutorial
+    if (isFirstTimeUser) {
+      markUserAsReturning();
+    }
 
     // Add user's choice as a message bubble
     const choiceText = choice === 'tutorial' ? "Yes, teach me prompting" : "No, continue normally";
@@ -281,11 +429,16 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeConversationId, addMessage, aiService, activeConversation?.messages, showThinkingProcess]);
+  }, [activeConversationId, addMessage, aiService, activeConversation?.messages, showThinkingProcess, isFirstTimeUser, markUserAsReturning]);
 
   // Handle research tutorial choice
   const handleResearchChoice = useCallback(async (choice: string) => {
     if (!activeConversationId) return;
+
+    // Mark user as returning when they interact with tutorial
+    if (isFirstTimeUser) {
+      markUserAsReturning();
+    }
 
     // Add user's choice as a message bubble
     const userMessage: Message = {
@@ -328,12 +481,124 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeConversationId, addMessage, aiService, activeConversation?.messages, showThinkingProcess]);
+  }, [activeConversationId, addMessage, aiService, activeConversation?.messages, showThinkingProcess, isFirstTimeUser, markUserAsReturning]);
 
   // Handle starting a random chat
-  const handleStartChat = useCallback(() => {
-    createNewConversation();
-  }, [createNewConversation]);
+  const handleStartChat = useCallback((initialMessage?: string) => {
+    if (initialMessage) {
+      // Create conversation with the initial message
+      const newConversation: Conversation = {
+        id: uuidv4(),
+        title: 'New Chat',
+        messages: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        projectId: currentView === 'project' ? activeProjectId || undefined : undefined
+      };
+
+      // Add greeting message
+      const greetingMessage: Message = {
+        id: uuidv4(),
+        content: generateGreeting(),
+        sender: 'ai',
+        timestamp: new Date()
+      };
+
+      // Add user's initial message
+      const userMessage: Message = {
+        id: uuidv4(),
+        content: initialMessage,
+        sender: 'user',
+        timestamp: new Date()
+      };
+
+      newConversation.messages = [greetingMessage, userMessage];
+
+      setConversations(prev => [newConversation, ...prev]);
+      setActiveConversationId(newConversation.id);
+
+      // If we're in a project, add this conversation to the project
+      if (currentView === 'project' && activeProjectId) {
+        setProjects(prev => prev.map(project => {
+          if (project.id === activeProjectId) {
+            return {
+              ...project,
+              chatIds: [newConversation.id, ...project.chatIds],
+              lastInteractionAt: new Date(),
+              updatedAt: new Date()
+            };
+          }
+          return project;
+        }));
+      }
+
+      // Reset onboarding states
+      setCurrentMode(null);
+      setBuildStep(0);
+      setCreateStep(0);
+      setResearchStep(0);
+
+      // Ensure we're in the right view
+      if (currentView !== 'project') {
+        setCurrentView('chat');
+        setActiveProjectId(null);
+      }
+
+      // Mark as returning user if it's their first time
+      if (isFirstTimeUser) {
+        markUserAsReturning();
+      }
+
+      // Get AI response to the initial message
+      (async () => {
+        try {
+          const result = await aiService.sendMessageWithThinking([greetingMessage, userMessage], showThinkingProcess);
+          const aiResponse: Message = {
+            id: uuidv4(),
+            content: result.response,
+            sender: 'ai',
+            timestamp: new Date(),
+            thinkingProcess: result.thinking
+          };
+          
+          // Add AI response to the conversation
+          setConversations(prev => prev.map(conv => {
+            if (conv.id === newConversation.id) {
+              return {
+                ...conv,
+                messages: [...conv.messages, aiResponse],
+                updatedAt: new Date()
+              };
+            }
+            return conv;
+          }));
+
+          // Auto-generate title after first exchange
+          setTimeout(async () => {
+            try {
+              const newTitle = await aiService.generateChatTitle([userMessage]);
+              setConversations(prev => prev.map(conv => {
+                if (conv.id === newConversation.id) {
+                  return {
+                    ...conv,
+                    title: newTitle,
+                    updatedAt: new Date()
+                  };
+                }
+                return conv;
+              }));
+            } catch (error) {
+              console.error('Error auto-generating title:', error);
+            }
+          }, 100);
+        } catch (error) {
+          console.error('Error getting AI response:', error);
+        }
+      })();
+    } else {
+      createNewConversation();
+    }
+  }, [createNewConversation, currentView, activeProjectId, generateGreeting, isFirstTimeUser, markUserAsReturning, aiService, showThinkingProcess]);
 
   // Select conversation
   const handleSelectConversation = useCallback((id: string) => {
@@ -372,9 +637,78 @@ function App() {
     }
   }, [activeConversationId, activeConversation, aiService]);
 
-  // Determine what to show in the main area
-  const showWelcome = !activeConversationId;
-  const showChat = activeConversationId && activeConversation;
+  // Project management functions
+  const createProject = useCallback((name: string, description?: string) => {
+    const newProject: Project = {
+      id: uuidv4(),
+      name,
+      description,
+      chatIds: [],
+      memories: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastInteractionAt: new Date()
+    };
+    
+    setProjects(prev => [newProject, ...prev]);
+  }, []);
+
+  const deleteProject = useCallback((projectId: string) => {
+    setProjects(prev => prev.filter(project => project.id !== projectId));
+  }, []);
+
+  const selectProject = useCallback((projectId: string) => {
+    setActiveProjectId(projectId);
+    setCurrentView('project');
+    setActiveConversationId(null);
+    setCurrentMode(null);
+  }, []);
+
+  const updateProject = useCallback((updatedProject: Project) => {
+    setProjects(prev => prev.map(project => 
+      project.id === updatedProject.id ? updatedProject : project
+    ));
+  }, []);
+
+  const backToProjects = useCallback(() => {
+    setActiveProjectId(null);
+    setCurrentView('projects');
+  }, []);
+
+  const navigateToProjects = useCallback(() => {
+    setCurrentView('projects');
+    setActiveConversationId(null);
+    setCurrentMode(null);
+  }, []);
+
+  const navigateToChats = useCallback(() => {
+    setCurrentView('chat');
+    setActiveProjectId(null);
+    setActiveConversationId(null);
+    setCurrentMode(null);
+    setBuildStep(0);
+    setCreateStep(0);
+    setResearchStep(0);
+  }, []);
+
+  // Handle tutorial access from chat interface
+  const handleAccessTutorials = useCallback(() => {
+    setShowTutorialModal(true);
+  }, []);
+
+  // Handle tutorial modal mode selection
+  const handleTutorialModalSelection = useCallback((mode: OnboardingMode) => {
+    setShowTutorialModal(false);
+    // Create a new conversation with the selected tutorial mode
+    handleModeSelection(mode);
+  }, [handleModeSelection]);
+
+  // Determine what to show in the main area  
+  const shouldShowTutorial = isFirstTimeUser && currentView === 'chat' && !activeConversationId;
+  const showWelcome = !isFirstTimeUser && currentView === 'chat' && !activeConversationId;
+  const showChat = (currentView === 'chat' || currentView === 'project') && activeConversationId && activeConversation;
+  const showProjects = currentView === 'projects';
+  const showProjectView = currentView === 'project' && activeProject && !activeConversationId;
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -385,14 +719,42 @@ function App() {
         onSelectConversation={handleSelectConversation}
         onNewConversation={createNewConversation}
         onDeleteConversation={deleteConversation}
+        onNavigateToProjects={navigateToProjects}
+        onNavigateToChats={navigateToChats}
+        currentView={currentView}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
-        {showWelcome && (
+        {(shouldShowTutorial || showWelcome) && (
           <WelcomeScreen
             onSelectMode={handleModeSelection}
             onStartChat={handleStartChat}
+            isFirstTime={isFirstTimeUser}
+          />
+        )}
+
+        {showProjects && (
+          <ProjectsPage
+            projects={projects}
+            onCreateProject={createProject}
+            onDeleteProject={deleteProject}
+            onSelectProject={selectProject}
+          />
+        )}
+
+        {showProjectView && activeProject && (
+          <ProjectView
+            project={activeProject}
+            conversations={conversations}
+            activeConversationId={activeConversationId}
+            onSelectConversation={handleSelectConversation}
+            onDeleteConversation={deleteConversation}
+            onNewConversation={createNewConversation}
+            onBackToProjects={backToProjects}
+            onUpdateProject={updateProject}
+            onSelectMode={handleModeSelection}
+            isFirstTimeUser={isFirstTimeUser}
           />
         )}
 
@@ -410,6 +772,7 @@ function App() {
             onResearchChoice={handleResearchChoice}
             showThinkingProcess={showThinkingProcess}
             onToggleThinkingProcess={setShowThinkingProcess}
+            onAccessTutorials={handleAccessTutorials}
             placeholder={
               currentMode === 'create' 
                 ? createStep === 1 
@@ -428,6 +791,41 @@ function App() {
           />
         )}
       </div>
+
+      {/* Tutorial Access Modal */}
+      {showTutorialModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Choose Tutorial</h3>
+            <p className="text-gray-600 mb-6">What would you like to learn about?</p>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => handleTutorialModalSelection('create')}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg transition-colors duration-200 text-left"
+              >
+                <div className="font-medium">Create something</div>
+                <div className="text-sm text-blue-100">Learn effective prompting for building projects</div>
+              </button>
+              
+              <button
+                onClick={() => handleTutorialModalSelection('research')}
+                className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg transition-colors duration-200 text-left"
+              >
+                <div className="font-medium">Research about a topic</div>
+                <div className="text-sm text-green-100">Master research techniques and information gathering</div>
+              </button>
+            </div>
+            
+            <button
+              onClick={() => setShowTutorialModal(false)}
+              className="mt-4 w-full bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg transition-colors duration-200"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

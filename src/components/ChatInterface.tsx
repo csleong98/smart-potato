@@ -17,6 +17,7 @@ interface ChatInterfaceProps {
   onResearchChoice?: (choice: string) => void;
   showThinkingProcess?: boolean;
   onToggleThinkingProcess?: (enabled: boolean) => void;
+  onAccessTutorials?: () => void;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -32,7 +33,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   showResearchChoices = false,
   onResearchChoice,
   showThinkingProcess = false,
-  onToggleThinkingProcess
+  onToggleThinkingProcess,
+  onAccessTutorials
 }) => {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -176,6 +178,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </button>
           </div>
         )}
+        
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center">
+            {onAccessTutorials && (
+              <button
+                onClick={onAccessTutorials}
+                className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded transition-colors duration-200 flex items-center space-x-1"
+                title="Access tutorials"
+              >
+                <span>📚</span>
+                <span>Tutorials</span>
+              </button>
+            )}
+          </div>
+        </div>
         
         <form onSubmit={handleSubmit} className="flex items-end space-x-3">
           <div className="flex-1">
