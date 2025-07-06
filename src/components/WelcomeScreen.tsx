@@ -40,16 +40,14 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectMode, onStartChat
         <p className="text-gray-600 text-lg max-w-2xl mx-auto">
           {isFirstTime 
             ? "Welcome to Smart Potato, your intelligent AI assistant powered by DeepSeek R1. Choose how you'd like to begin your journey."
-            : "Ready to dive into another conversation? Start typing below or explore tutorials with the button nearby."
+            : "Ready to dive into another conversation? Choose a tutorial option below or start typing to begin a regular chat."
           }
         </p>
       </div>
 
-      {isFirstTime && (
-        <div className="mb-12">
-          <OnboardingButtons onSelectMode={onSelectMode} />
-        </div>
-      )}
+      <div className="mb-12">
+        <OnboardingButtons onSelectMode={onSelectMode} />
+      </div>
 
       <div className="w-full max-w-2xl">
         <div className="relative">

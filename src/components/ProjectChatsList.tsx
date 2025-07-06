@@ -123,18 +123,13 @@ const ProjectChatsList: React.FC<ProjectChatsListProps> = ({
                 Start a new conversation in {project.name}
               </h2>
               <p className="text-gray-600">
-                {isFirstTimeUser 
-                  ? "Choose how you'd like to begin your conversation in this project"
-                  : "Ready to start chatting in this project? Click the button above or choose a tutorial option below."
-                }
+                Choose how you'd like to begin your conversation in this project, or click the button above to start a regular chat.
               </p>
             </div>
 
-            {isFirstTimeUser && (
-              <div className="mb-8">
-                <OnboardingButtons onSelectMode={onSelectMode} />
-              </div>
-            )}
+            <div className="mb-8">
+              <OnboardingButtons onSelectMode={onSelectMode} />
+            </div>
 
             <div className="text-sm text-gray-500">
               <p>All conversations created here will be part of the {project.name} project</p>

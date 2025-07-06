@@ -1,12 +1,14 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Message, Conversation, OnboardingMode, Project } from './types';
+import { Message, Conversation, OnboardingMode, Project, Workflow, Integration, IntegrationType } from './types';
 import { AIService, MockAIService } from './services/aiService';
 import Sidebar from './components/Sidebar';
 import WelcomeScreen from './components/WelcomeScreen';
 import ChatInterface from './components/ChatInterface';
 import ProjectsPage from './components/ProjectsPage';
 import ProjectView from './components/ProjectView';
+import WorkflowsPage from './components/WorkflowsPage';
+import IntegrationsPage from './components/IntegrationsPage';
 
 function App() {
   // State management
@@ -22,8 +24,12 @@ function App() {
   
   // Projects state
   const [projects, setProjects] = useState<Project[]>([]);
-  const [currentView, setCurrentView] = useState<'chat' | 'projects' | 'project'>('chat');
+  const [currentView, setCurrentView] = useState<'chat' | 'projects' | 'project' | 'workflows' | 'integrations'>('chat');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  
+  // Workflows and Integrations state
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
   
   // First-time user detection
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(() => {
@@ -286,7 +292,7 @@ function App() {
       };
       addMessage(newConversation.id, aiMessage);
     }
-  }, [addMessage, aiService, activeProjectId, isFirstTimeUser, markUserAsReturning]);
+  }, [addMessage, aiService, activeProjectId]);
 
   // Handle message sending
   const handleSendMessage = useCallback(async (content: string) => {
@@ -742,6 +748,124 @@ When the user asks about their project memories or notes, reference ONLY the con
     setResearchStep(0);
   }, []);
 
+  // Workflow management functions
+  const navigateToWorkflows = useCallback(() => {
+    setCurrentView('workflows');
+    setActiveConversationId(null);
+    setCurrentMode(null);
+    setActiveProjectId(null);
+  }, []);
+
+  const createWorkflow = useCallback((workflow: Omit<Workflow, 'id' | 'createdAt' | 'updatedAt' | 'lastRun' | 'runCount'>) => {
+    const newWorkflow: Workflow = {
+      ...workflow,
+      id: uuidv4(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      runCount: 0
+    };
+    
+    setWorkflows(prev => [newWorkflow, ...prev]);
+  }, []);
+
+  const deleteWorkflow = useCallback((workflowId: string) => {
+    setWorkflows(prev => prev.filter(workflow => workflow.id !== workflowId));
+  }, []);
+
+  const editWorkflow = useCallback((workflowId: string) => {
+    // TODO: Implement workflow editor
+    console.log('Edit workflow:', workflowId);
+  }, []);
+
+  const toggleWorkflow = useCallback((workflowId: string, status: 'active' | 'inactive') => {
+    setWorkflows(prev => prev.map(workflow => 
+      workflow.id === workflowId 
+        ? { ...workflow, status, updatedAt: new Date() }
+        : workflow
+    ));
+  }, []);
+
+  // Integration management functions
+  const navigateToIntegrations = useCallback(() => {
+    setCurrentView('integrations');
+    setActiveConversationId(null);
+    setCurrentMode(null);
+    setActiveProjectId(null);
+  }, []);
+
+  const connectIntegration = useCallback((type: IntegrationType, config: any) => {
+    const newIntegration: Integration = {
+      id: uuidv4(),
+      name: getIntegrationName(type),
+      type,
+      status: 'connected',
+      description: getIntegrationDescription(type),
+      icon: getIntegrationIcon(type),
+      config: {
+        ...config,
+        settings: {}
+      },
+      connectedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    setIntegrations(prev => [newIntegration, ...prev]);
+  }, []);
+
+  const disconnectIntegration = useCallback((integrationId: string) => {
+    setIntegrations(prev => prev.filter(integration => integration.id !== integrationId));
+  }, []);
+
+  const updateIntegration = useCallback((integration: Integration) => {
+    setIntegrations(prev => prev.map(i => 
+      i.id === integration.id ? integration : i
+    ));
+  }, []);
+
+  // Helper functions for integrations
+  const getIntegrationName = (type: IntegrationType): string => {
+    const names = {
+      email: 'Gmail',
+      calendar: 'Google Calendar',
+      storage: 'Google Drive',
+      notification: 'Discord Webhooks',
+      document: 'Google Docs',
+      database: 'Airtable',
+      api: 'OpenWeather API',
+      social: 'Reddit API'
+    };
+    return names[type] || type;
+  };
+
+  const getIntegrationDescription = (type: IntegrationType): string => {
+    const descriptions = {
+      email: 'Connect to Gmail for email automation',
+      calendar: 'Automate calendar events and scheduling',
+      storage: 'File storage and document management',
+      notification: 'Send notifications to Discord channels',
+      document: 'Create and edit documents automatically',
+      database: 'Database operations and data storage',
+      api: 'Weather data for automations',
+      social: 'Monitor and post to Reddit'
+    };
+    return descriptions[type] || '';
+  };
+
+  const getIntegrationIcon = (type: IntegrationType): string => {
+    const icons = {
+      email: '📧',
+      calendar: '📅',
+      storage: '🗂️',
+      notification: '🔔',
+      document: '📄',
+      database: '🗃️',
+      api: '🌤️',
+      social: '🤖'
+    };
+    return icons[type] || '🔗';
+  };
+
   // Handle tutorial access from chat interface
   const handleAccessTutorials = useCallback(() => {
     setShowTutorialModal(true);
@@ -754,9 +878,11 @@ When the user asks about their project memories or notes, reference ONLY the con
     handleModeSelection(mode);
   }, [handleModeSelection]);
 
+
+
   // Determine what to show in the main area  
   const shouldShowTutorial = isFirstTimeUser && currentView === 'chat' && !activeConversationId;
-  const showWelcome = !isFirstTimeUser && currentView === 'chat' && !activeConversationId;
+  const showWelcome = currentView === 'chat' && !activeConversationId;
   const showChat = (currentView === 'chat' || currentView === 'project') && activeConversationId && activeConversation;
   const showProjects = currentView === 'projects';
   const showProjectView = currentView === 'project' && activeProject && !activeConversationId;
@@ -772,6 +898,8 @@ When the user asks about their project memories or notes, reference ONLY the con
         onDeleteConversation={deleteConversation}
         onNavigateToProjects={navigateToProjects}
         onNavigateToChats={navigateToChats}
+        onNavigateToWorkflows={navigateToWorkflows}
+        onNavigateToIntegrations={navigateToIntegrations}
         currentView={currentView}
       />
 
@@ -807,6 +935,27 @@ When the user asks about their project memories or notes, reference ONLY the con
             onSelectMode={handleModeSelection}
             onAddConversationsToProject={addConversationsToProject}
             isFirstTimeUser={isFirstTimeUser}
+          />
+        )}
+
+        {currentView === 'workflows' && (
+          <WorkflowsPage
+            workflows={workflows}
+            integrations={integrations}
+            onCreateWorkflow={createWorkflow}
+            onDeleteWorkflow={deleteWorkflow}
+            onEditWorkflow={editWorkflow}
+            onToggleWorkflow={toggleWorkflow}
+            onNavigateToIntegrations={navigateToIntegrations}
+          />
+        )}
+
+        {currentView === 'integrations' && (
+          <IntegrationsPage
+            integrations={integrations}
+            onConnectIntegration={connectIntegration}
+            onDisconnectIntegration={disconnectIntegration}
+            onUpdateIntegration={updateIntegration}
           />
         )}
 
