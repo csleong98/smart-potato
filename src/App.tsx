@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Message, Conversation, OnboardingMode, Project, Workflow, Integration, IntegrationType } from './types';
+import { Message, Conversation, OnboardingMode, Project, Workflow, Integration, IntegrationType, Reminder } from './types';
 import { AIService, MockAIService } from './services/aiService';
 import Sidebar from './components/Sidebar';
 import WelcomeScreen from './components/WelcomeScreen';
@@ -9,6 +9,9 @@ import ProjectsPage from './components/ProjectsPage';
 import ProjectView from './components/ProjectView';
 import WorkflowsPage from './components/WorkflowsPage';
 import IntegrationsPage from './components/IntegrationsPage';
+import RemindersPage from './components/RemindersPage';
+import ReminderModal from './components/ReminderModal';
+import Snackbar from './components/Snackbar';
 
 function App() {
   // State management
@@ -24,12 +27,23 @@ function App() {
   
   // Projects state
   const [projects, setProjects] = useState<Project[]>([]);
-  const [currentView, setCurrentView] = useState<'chat' | 'projects' | 'project' | 'workflows' | 'integrations'>('chat');
+  const [currentView, setCurrentView] = useState<'chat' | 'projects' | 'project' | 'workflows' | 'integrations' | 'reminders'>('chat');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   
   // Workflows and Integrations state
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
+  
+  // Reminders state
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+    isVisible: boolean;
+  }>({ message: '', type: 'info', isVisible: false });
   
   // First-time user detection
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(() => {
@@ -631,7 +645,7 @@ When the user asks about their project memories or notes, reference ONLY the con
     } else {
       createNewConversation();
     }
-  }, [createNewConversation, currentView, activeProjectId, generateGreeting, isFirstTimeUser, markUserAsReturning, aiService, showThinkingProcess]);
+  }, [createNewConversation, currentView, activeProjectId, generateGreeting, isFirstTimeUser, markUserAsReturning, aiService, showThinkingProcess, activeProject?.context]);
 
   // Select conversation
   const handleSelectConversation = useCallback((id: string) => {
@@ -743,6 +757,16 @@ When the user asks about their project memories or notes, reference ONLY the con
     setActiveProjectId(null);
     setActiveConversationId(null);
     setCurrentMode(null);
+    setBuildStep(0);
+    setCreateStep(0);
+    setResearchStep(0);
+  }, []);
+
+  const navigateToReminders = useCallback(() => {
+    setCurrentView('reminders');
+    setActiveConversationId(null);
+    setCurrentMode(null);
+    setActiveProjectId(null);
     setBuildStep(0);
     setCreateStep(0);
     setResearchStep(0);
@@ -878,6 +902,194 @@ When the user asks about their project memories or notes, reference ONLY the con
     handleModeSelection(mode);
   }, [handleModeSelection]);
 
+  // Snackbar functions
+  const showSnackbar = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    setSnackbar({ message, type, isVisible: true });
+  }, []);
+
+  const hideSnackbar = useCallback(() => {
+    setSnackbar(prev => ({ ...prev, isVisible: false }));
+  }, []);
+
+  // Reminder functions
+  const handleSetReminder = useCallback(() => {
+    if (!activeConversationId) return;
+    setShowReminderModal(true);
+  }, [activeConversationId]);
+
+  // Helper function to extract summary from DeepSeek R1 response (which may contain thinking process)
+  const extractSummaryFromResponse = (response: string): string => {
+    // DeepSeek R1 sometimes includes thinking process at the beginning
+    // Look for common patterns that indicate the end of thinking and start of actual response
+    
+    // Split by common delimiters that separate thinking from actual response
+    const summaryIndicators = [
+      'Here\'s a summary:',
+      'Summary:',
+      'In summary:',
+      'To summarize:',
+      'The conversation',
+      'This conversation',
+      'The discussion'
+    ];
+    
+    // Try to find content after thinking process markers
+    for (const indicator of summaryIndicators) {
+      const index = response.indexOf(indicator);
+      if (index !== -1) {
+        return response.substring(index).trim();
+      }
+    }
+    
+    // If no clear indicators, try to find the last substantial paragraph
+    const paragraphs = response.split('\n\n').filter(p => p.trim().length > 50);
+    if (paragraphs.length > 0) {
+      return paragraphs[paragraphs.length - 1].trim();
+    }
+    
+    // Fallback: take the last 2-3 sentences that don't contain thinking indicators
+    const sentences = response.split(/[.!?]+/).filter(s => s.trim().length > 20);
+    const thinkingKeywords = ['think', 'consider', 'analyze', 'reasoning', 'let me', 'I need to', 'looking at'];
+    
+    const cleanSentences = sentences.filter(sentence => 
+      !thinkingKeywords.some(keyword => sentence.toLowerCase().includes(keyword))
+    );
+    
+    if (cleanSentences.length >= 2) {
+      return cleanSentences.slice(-2).join('. ').trim() + '.';
+    }
+    
+    // Final fallback: return the original response but limit length
+    return response.length > 300 ? response.substring(0, 300) + '...' : response;
+  };
+
+  const handleCreateReminder = useCallback(async (reminderData: Omit<Reminder, 'id' | 'createdAt' | 'updatedAt'>, generateSummary?: boolean) => {
+    const newReminder: Reminder = {
+      ...reminderData,
+      id: uuidv4(),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    setReminders(prev => [newReminder, ...prev]);
+    showSnackbar('Reminder set! We will remind you to come back to this conversation.', 'success');
+
+    // If summary is requested, generate it in the chat
+    if (generateSummary && activeConversationId && activeConversation) {
+      // Add a system message indicating summary generation
+      const summaryRequestMessage: Message = {
+        id: uuidv4(),
+        content: '🔔 **Generating conversation summary for your reminder...**',
+        sender: 'user',
+        timestamp: new Date(),
+        isSystemMessage: true
+      };
+
+      // Add the request message to conversation
+      setConversations(prevConversations =>
+        prevConversations.map(conv =>
+          conv.id === activeConversationId
+            ? { ...conv, messages: [...conv.messages, summaryRequestMessage] }
+            : conv
+        )
+      );
+
+      setIsLoading(true);
+
+      try {
+        // Generate summary using AI service with explicit instructions to avoid thinking process
+        const summaryMessages: Message[] = [
+          {
+            id: 'summary-system',
+            content: 'You must provide ONLY a concise summary of this conversation in 2-3 sentences. Focus on the main topics discussed, key decisions made, and any important outcomes or next steps. Do NOT include any thinking process, reasoning, or explanations - just provide the direct summary content.',
+            sender: 'ai',
+            timestamp: new Date()
+          },
+          ...activeConversation.messages
+        ];
+
+        const rawSummary = await aiService.sendMessage(summaryMessages, activeProject?.context);
+        
+        // Extract the actual summary content, filtering out thinking process
+        const summary = extractSummaryFromResponse(rawSummary);
+
+        // Add AI response with summary
+        const summaryResponseMessage: Message = {
+          id: uuidv4(),
+          content: `📝 **Conversation Summary:**\n\n${summary}`,
+          sender: 'ai',
+          timestamp: new Date(),
+          isSystemMessage: true
+        };
+
+        setConversations(prevConversations =>
+          prevConversations.map(conv =>
+            conv.id === activeConversationId
+              ? { ...conv, messages: [...conv.messages, summaryResponseMessage] }
+              : conv
+          )
+        );
+
+        // Update the reminder with the generated summary
+        setReminders(prev => prev.map(reminder => 
+          reminder.id === newReminder.id 
+            ? { ...reminder, summary, updatedAt: new Date() }
+            : reminder
+        ));
+
+      } catch (error) {
+        console.error('Error generating summary:', error);
+        
+        // Add error message
+        const errorMessage: Message = {
+          id: uuidv4(),
+          content: '❌ Failed to generate conversation summary. Please try again later.',
+          sender: 'ai',
+          timestamp: new Date(),
+          isSystemMessage: true
+        };
+
+        setConversations(prevConversations =>
+          prevConversations.map(conv =>
+            conv.id === activeConversationId
+              ? { ...conv, messages: [...conv.messages, errorMessage] }
+              : conv
+          )
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }, [showSnackbar, activeConversationId, activeConversation, activeProject?.context, aiService]);
+
+  const handleUpdateReminder = useCallback((updatedReminder: Reminder) => {
+    setReminders(prev => prev.map(reminder => 
+      reminder.id === updatedReminder.id ? updatedReminder : reminder
+    ));
+  }, []);
+
+  const handleDeleteReminder = useCallback((reminderId: string) => {
+    setReminders(prev => prev.filter(reminder => reminder.id !== reminderId));
+    showSnackbar('Reminder deleted.', 'info');
+  }, [showSnackbar]);
+
+  const handleNavigateToConversation = useCallback((conversationId: string, projectId?: string) => {
+    if (projectId) {
+      setActiveProjectId(projectId);
+      setCurrentView('project');
+    } else {
+      setCurrentView('chat');
+      setActiveProjectId(null);
+    }
+    setActiveConversationId(conversationId);
+    setCurrentMode(null);
+    setBuildStep(0);
+    setCreateStep(0);
+    setResearchStep(0);
+  }, []);
+
+
+
 
 
   // Determine what to show in the main area  
@@ -886,6 +1098,7 @@ When the user asks about their project memories or notes, reference ONLY the con
   const showChat = (currentView === 'chat' || currentView === 'project') && activeConversationId && activeConversation;
   const showProjects = currentView === 'projects';
   const showProjectView = currentView === 'project' && activeProject && !activeConversationId;
+  const showReminders = currentView === 'reminders';
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -900,6 +1113,7 @@ When the user asks about their project memories or notes, reference ONLY the con
         onNavigateToChats={navigateToChats}
         onNavigateToWorkflows={navigateToWorkflows}
         onNavigateToIntegrations={navigateToIntegrations}
+        onNavigateToReminders={navigateToReminders}
         currentView={currentView}
       />
 
@@ -959,6 +1173,15 @@ When the user asks about their project memories or notes, reference ONLY the con
           />
         )}
 
+        {showReminders && (
+          <RemindersPage
+            reminders={reminders}
+            onUpdateReminder={handleUpdateReminder}
+            onDeleteReminder={handleDeleteReminder}
+            onNavigateToConversation={handleNavigateToConversation}
+          />
+        )}
+
         {showChat && (
           <ChatInterface
             conversation={activeConversation}
@@ -974,6 +1197,7 @@ When the user asks about their project memories or notes, reference ONLY the con
             showThinkingProcess={showThinkingProcess}
             onToggleThinkingProcess={setShowThinkingProcess}
             onAccessTutorials={handleAccessTutorials}
+            onSetReminder={handleSetReminder}
             placeholder={
               currentMode === 'create' 
                 ? createStep === 1 
@@ -1027,6 +1251,25 @@ When the user asks about their project memories or notes, reference ONLY the con
           </div>
         </div>
       )}
+
+      {/* Reminder Modal */}
+      {showReminderModal && activeConversation && (
+        <ReminderModal
+          conversation={activeConversation}
+          projectName={activeProject?.name}
+          isOpen={showReminderModal}
+          onClose={() => setShowReminderModal(false)}
+          onCreateReminder={handleCreateReminder}
+        />
+      )}
+
+      {/* Snackbar */}
+      <Snackbar
+        message={snackbar.message}
+        type={snackbar.type}
+        isVisible={snackbar.isVisible}
+        onClose={hideSnackbar}
+      />
     </div>
   );
 }

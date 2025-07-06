@@ -4,6 +4,7 @@ export interface Message {
   sender: 'user' | 'ai';
   timestamp: Date;
   thinkingProcess?: string; // Optional thinking process for AI messages
+  isSystemMessage?: boolean; // For system-generated messages like summaries
 }
 
 export interface Conversation {
@@ -47,6 +48,20 @@ export type ContextType =
   | 'creative'
   | 'personal'
   | 'custom';
+
+export interface Reminder {
+  id: string;
+  conversationId: string;
+  conversationTitle: string;
+  projectId?: string;
+  projectName?: string;
+  reminderDate: Date;
+  message?: string; // Optional custom message from user
+  summary?: string; // AI-generated conversation summary
+  status: 'pending' | 'completed' | 'cancelled';
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 // Workflow and Integration Types
 export interface Integration {
