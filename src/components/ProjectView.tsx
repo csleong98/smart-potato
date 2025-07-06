@@ -3,6 +3,7 @@ import { Project, Conversation, OnboardingMode } from '../types';
 import ProjectMemorySection from './ProjectMemorySection';
 import ProjectChatsList from './ProjectChatsList';
 import AddChatsToProjectModal from './AddChatsToProjectModal';
+import ProjectContextSection from './ProjectContextSection';
 
 interface ProjectViewProps {
   project: Project;
@@ -31,7 +32,7 @@ const ProjectView: React.FC<ProjectViewProps> = ({
   onAddConversationsToProject,
   isFirstTimeUser = false
 }) => {
-  const [activeTab, setActiveTab] = useState<'chats' | 'memory'>('chats');
+  const [activeTab, setActiveTab] = useState<'chats' | 'memory' | 'context'>('chats');
   const [showAddChatsModal, setShowAddChatsModal] = useState(false);
 
   // Filter conversations that belong to this project
@@ -78,6 +79,10 @@ const ProjectView: React.FC<ProjectViewProps> = ({
               <div className="text-lg font-bold text-purple-600">{project.memories.length}</div>
               <div className="text-xs text-gray-500">Memories</div>
             </div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-green-600">{project.context ? '1' : '0'}</div>
+              <div className="text-xs text-gray-500">Context</div>
+            </div>
             
             {/* Add Existing Chats Button */}
             {availableConversationsCount > 0 && (
@@ -117,6 +122,16 @@ const ProjectView: React.FC<ProjectViewProps> = ({
           >
             Project Memory ({project.memories.length})
           </button>
+          <button
+            onClick={() => setActiveTab('context')}
+            className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'context'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Context {project.context ? '(1)' : '(0)'}
+          </button>
         </div>
       </div>
 
@@ -133,8 +148,13 @@ const ProjectView: React.FC<ProjectViewProps> = ({
             onSelectMode={onSelectMode}
             isFirstTimeUser={isFirstTimeUser}
           />
-        ) : (
+        ) : activeTab === 'memory' ? (
           <ProjectMemorySection
+            project={project}
+            onUpdateProject={onUpdateProject}
+          />
+        ) : (
+          <ProjectContextSection
             project={project}
             onUpdateProject={onUpdateProject}
           />

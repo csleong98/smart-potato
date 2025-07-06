@@ -425,7 +425,7 @@ Focus on the REASONING behind the research guidance approach, not repeating the 
   }
 
   // Enhanced message with optional thinking process capture
-  async sendMessageWithThinking(messages: Message[], captureThinking: boolean = false): Promise<{response: string, thinking?: string}> {
+  async sendMessageWithThinking(messages: Message[], captureThinking: boolean = false, projectContext?: string): Promise<{response: string, thinking?: string}> {
     try {
       let thinkingProcess: string | undefined;
       
@@ -479,7 +479,7 @@ Focus ONLY on the reasoning behind how you would approach this response. Do NOT 
       }
 
       // Second API call (or only call if not capturing thinking): Get the actual response
-      const response = await this.sendMessage(messages);
+      const response = await this.sendMessage(messages, projectContext);
       
       return {
         response,
@@ -494,7 +494,7 @@ Focus ONLY on the reasoning behind how you would approach this response. Do NOT 
   }
 
   // Enhanced general chat with personality constraints
-  async sendMessage(messages: Message[]): Promise<string> {
+  async sendMessage(messages: Message[], projectContext?: string): Promise<string> {
     try {
       // Add system personality constraints for all conversations
       const systemMessage = {
@@ -516,7 +516,16 @@ RESPONSE RULES:
 FORBIDDEN:
 - Don't repeat the user's question back to them
 - Don't be overly formal or robotic
-- Don't give incomplete answers without offering next steps`
+- Don't give incomplete answers without offering next steps
+
+${projectContext ? `
+
+PROJECT CONTEXT:
+The user is working within a project with the following context. Please consider this context when providing assistance:
+
+${projectContext}
+
+Keep this context in mind when responding to help provide more relevant and targeted assistance.` : ''}`
       };
 
       // Convert our Message format to OpenAI format with system message
@@ -613,7 +622,7 @@ export class MockAIService extends AIService {
     super('');
   }
 
-  async sendMessage(messages: Message[]): Promise<string> {
+  async sendMessage(messages: Message[], projectContext?: string): Promise<string> {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000));
     
@@ -625,7 +634,7 @@ export class MockAIService extends AIService {
     return 'Hello! I\'m Smart Potato, your AI assistant.';
   }
 
-  async sendMessageWithThinking(messages: Message[], captureThinking: boolean = false): Promise<{response: string, thinking?: string}> {
+  async sendMessageWithThinking(messages: Message[], captureThinking: boolean = false, projectContext?: string): Promise<{response: string, thinking?: string}> {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000));
     

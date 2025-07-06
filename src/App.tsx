@@ -368,7 +368,7 @@ When the user asks about their project memories or notes, reference ONLY the con
           contextMessages = [systemContextMessage, ...conversationMessages, userMessage];
         }
         
-        const result = await aiService.sendMessageWithThinking(contextMessages, showThinkingProcess);
+        const result = await aiService.sendMessageWithThinking(contextMessages, showThinkingProcess, activeProject?.context);
         response = result.response;
         
         // Store thinking process for use in AI message creation
@@ -585,7 +585,7 @@ When the user asks about their project memories or notes, reference ONLY the con
       // Get AI response to the initial message
       (async () => {
         try {
-          const result = await aiService.sendMessageWithThinking([greetingMessage, userMessage], showThinkingProcess);
+          const result = await aiService.sendMessageWithThinking([greetingMessage, userMessage], showThinkingProcess, activeProject?.context);
           const aiResponse: Message = {
             id: uuidv4(),
             content: result.response,

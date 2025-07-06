@@ -21,6 +21,8 @@ export interface Project {
   description?: string;
   chatIds: string[]; // IDs of conversations in this project
   memories: ProjectMemory[];
+  context?: string; // Project-specific context to be included in all conversations
+  contextType?: ContextType; // Type of context for better organization
   createdAt: Date;
   updatedAt: Date;
   lastInteractionAt: Date;
@@ -37,6 +39,14 @@ export interface ProjectMemory {
 }
 
 export type OnboardingMode = 'create' | 'research' | 'build' | null;
+
+export type ContextType = 
+  | 'development'
+  | 'business'
+  | 'research'
+  | 'creative'
+  | 'personal'
+  | 'custom';
 
 // Workflow and Integration Types
 export interface Integration {
