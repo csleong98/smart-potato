@@ -917,51 +917,7 @@ When the user asks about their project memories or notes, reference ONLY the con
     setShowReminderModal(true);
   }, [activeConversationId]);
 
-  // Helper function to extract summary from DeepSeek R1 response (which may contain thinking process)
-  const extractSummaryFromResponse = (response: string): string => {
-    // DeepSeek R1 sometimes includes thinking process at the beginning
-    // Look for common patterns that indicate the end of thinking and start of actual response
-    
-    // Split by common delimiters that separate thinking from actual response
-    const summaryIndicators = [
-      'Here\'s a summary:',
-      'Summary:',
-      'In summary:',
-      'To summarize:',
-      'The conversation',
-      'This conversation',
-      'The discussion'
-    ];
-    
-    // Try to find content after thinking process markers
-    for (const indicator of summaryIndicators) {
-      const index = response.indexOf(indicator);
-      if (index !== -1) {
-        return response.substring(index).trim();
-      }
-    }
-    
-    // If no clear indicators, try to find the last substantial paragraph
-    const paragraphs = response.split('\n\n').filter(p => p.trim().length > 50);
-    if (paragraphs.length > 0) {
-      return paragraphs[paragraphs.length - 1].trim();
-    }
-    
-    // Fallback: take the last 2-3 sentences that don't contain thinking indicators
-    const sentences = response.split(/[.!?]+/).filter(s => s.trim().length > 20);
-    const thinkingKeywords = ['think', 'consider', 'analyze', 'reasoning', 'let me', 'I need to', 'looking at'];
-    
-    const cleanSentences = sentences.filter(sentence => 
-      !thinkingKeywords.some(keyword => sentence.toLowerCase().includes(keyword))
-    );
-    
-    if (cleanSentences.length >= 2) {
-      return cleanSentences.slice(-2).join('. ').trim() + '.';
-    }
-    
-    // Final fallback: return the original response but limit length
-    return response.length > 300 ? response.substring(0, 300) + '...' : response;
-  };
+
 
   const handleCreateReminder = useCallback(async (reminderData: Omit<Reminder, 'id' | 'createdAt' | 'updatedAt'>, generateSummary?: boolean) => {
     const newReminder: Reminder = {
@@ -997,21 +953,8 @@ When the user asks about their project memories or notes, reference ONLY the con
       setIsLoading(true);
 
       try {
-        // Generate summary using AI service with explicit instructions to avoid thinking process
-        const summaryMessages: Message[] = [
-          {
-            id: 'summary-system',
-            content: 'You must provide ONLY a concise summary of this conversation in 2-3 sentences. Focus on the main topics discussed, key decisions made, and any important outcomes or next steps. Do NOT include any thinking process, reasoning, or explanations - just provide the direct summary content.',
-            sender: 'ai',
-            timestamp: new Date()
-          },
-          ...activeConversation.messages
-        ];
-
-        const rawSummary = await aiService.sendMessage(summaryMessages, activeProject?.context);
-        
-        // Extract the actual summary content, filtering out thinking process
-        const summary = extractSummaryFromResponse(rawSummary);
+        // Use the dedicated generateSummary method for clean results
+        const summary = await aiService.generateSummary(activeConversation.messages, activeProject?.context);
 
         // Add AI response with summary
         const summaryResponseMessage: Message = {
@@ -1087,10 +1030,6 @@ When the user asks about their project memories or notes, reference ONLY the con
     setCreateStep(0);
     setResearchStep(0);
   }, []);
-
-
-
-
 
   // Determine what to show in the main area  
   const shouldShowTutorial = isFirstTimeUser && currentView === 'chat' && !activeConversationId;

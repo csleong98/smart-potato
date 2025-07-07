@@ -612,6 +612,103 @@ Keep this context in mind when responding to help provide more relevant and targ
       return title.length > 0 ? title : 'General Chat';
     }
   }
+
+  // Generate a clean conversation summary without thinking process
+  async generateSummary(messages: Message[], projectContext?: string): Promise<string> {
+    try {
+      // Create a focused system message specifically for summary generation
+      const summarySystemMessage = {
+        role: 'system',
+        content: `You are an AI assistant that creates concise conversation summaries. 
+
+CRITICAL INSTRUCTIONS:
+- Provide ONLY a clean, concise summary in 2-3 sentences
+- Focus on main topics discussed, key decisions made, and important outcomes
+- Do NOT include any thinking process, reasoning, or meta-commentary
+- Do NOT include phrases like "this conversation covered" or "the user asked"
+- Write in third person or neutral tone
+- Be direct and factual
+
+${projectContext ? `
+
+PROJECT CONTEXT: ${projectContext}` : ''}
+
+EXAMPLE FORMAT:
+"The discussion explored building a React application with user authentication. Key decisions included using Firebase for backend services and implementing a dashboard with data visualization. Next steps involve setting up the development environment and creating the initial component structure."`
+      };
+
+      // Filter out system messages and only include user/AI conversation
+      const conversationMessages = messages
+        .filter(msg => !msg.content.includes('You are Smart Potato') && !msg.content.includes('CRITICAL INSTRUCTIONS'))
+        .map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        }));
+
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'Smart Potato AI Assistant - Summary'
+        },
+        body: JSON.stringify({
+          model: MODEL_NAME,
+          messages: [summarySystemMessage, ...conversationMessages],
+          temperature: 0.1, // Very low temperature for consistent, factual summaries
+          max_tokens: 200,  // Limit tokens to ensure conciseness
+          top_p: 0.5,       // More focused responses
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const rawSummary = data.choices[0]?.message?.content || 'Unable to generate summary.';
+      
+      // Clean up the summary - remove any remaining thinking patterns
+      const cleanSummary = this.cleanSummaryText(rawSummary);
+      
+      return cleanSummary;
+    } catch (error) {
+      console.error('Summary generation error:', error);
+      throw error;
+    }
+  }
+
+  // Helper method to clean summary text
+  private cleanSummaryText(text: string): string {
+    // Remove common thinking process indicators
+    const thinkingPatterns = [
+      /\*\*[^*]+\*\*:?/g, // Remove **headers**
+      /^(Looking at|Analyzing|Considering|Based on).{0,50}:/gmi,
+      /^(The user|This conversation|The discussion).{0,30}(involves|covers|discusses)/gmi,
+      /\n\s*\n/g, // Remove multiple newlines
+    ];
+
+    let cleaned = text.trim();
+    
+    // Apply cleaning patterns
+    for (const pattern of thinkingPatterns) {
+      cleaned = cleaned.replace(pattern, '');
+    }
+
+    // Clean up spacing and ensure proper sentence structure
+    cleaned = cleaned
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .replace(/^\W+/, '') // Remove leading non-word characters
+      .trim();
+
+    // Ensure it ends with proper punctuation
+    if (cleaned && !cleaned.match(/[.!?]$/)) {
+      cleaned += '.';
+    }
+
+    return cleaned || 'Summary could not be generated.';
+  }
 }
 
 
@@ -789,27 +886,72 @@ export class MockAIService extends AIService {
       return 'New Chat';
     }
 
-    // Simple mock title generation based on first user message
+    // Get only the first user message
     const firstUserMessage = messages.find(msg => msg.sender === 'user');
-    if (firstUserMessage) {
-      const content = firstUserMessage.content.toLowerCase();
-      
-      // Mock some intelligent title generation
-      if (content.includes('build') || content.includes('create')) {
-        return 'Build Project Discussion';
-      } else if (content.includes('help') || content.includes('how')) { 
-        return 'Help & How-To Chat';
-      } else if (content.includes('debug') || content.includes('error') || content.includes('fix')) {
-        return 'Debug & Fix Issues';
-      } else if (content.includes('learn') || content.includes('explain')) {
-        return 'Learning Session';
-      } else {
-        // Use first few words as title
-        const words = firstUserMessage.content.split(' ').slice(0, 4);
-        return words.join(' ') + (words.length < firstUserMessage.content.split(' ').length ? '...' : '');
-      }
+    if (!firstUserMessage) {
+      return 'New Chat';
     }
+
+    const content = firstUserMessage.content.toLowerCase();
     
-    return 'General Chat';
+    // Mock intelligent title generation based on first user message
+    if (content.includes('build') || content.includes('create') || content.includes('make')) {
+      if (content.includes('app') || content.includes('application')) {
+        return 'Build App Project';
+      } else if (content.includes('website') || content.includes('web')) {
+        return 'Build Website';
+      } else {
+        return 'Build Project';
+      }
+    } else if (content.includes('help') || content.includes('how')) {
+      if (content.includes('debug') || content.includes('fix') || content.includes('error')) {
+        return 'Debug Help';
+      } else {
+        return 'Help Request';
+      }
+    } else if (content.includes('learn') || content.includes('explain') || content.includes('teach')) {
+      return 'Learning Session';
+    } else if (content.includes('weather')) {
+      return 'Weather Check';
+    } else if (content.includes('code') || content.includes('programming')) {
+      return 'Code Discussion';
+    } else {
+      // Use first 2-3 meaningful words as fallback
+      const words = firstUserMessage.content.split(' ')
+        .filter(word => word.length > 2) // Remove small words like "I", "a", "the"
+        .slice(0, 3); // Take first 3 meaningful words
+      const title = words.join(' ');
+      return title.length > 0 ? title : 'General Chat';
+    }
+  }
+
+  // Generate a mock conversation summary
+  async generateSummary(messages: Message[], projectContext?: string): Promise<string> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    if (messages.length === 0) {
+      return 'Empty conversation with no messages to summarize.';
+    }
+
+    // Extract key topics from user messages for mock summary
+    const userMessages = messages.filter(msg => msg.sender === 'user');
+    if (userMessages.length === 0) {
+      return 'Conversation started but no user messages to summarize.';
+    }
+
+    const firstUserMessage = userMessages[0].content.toLowerCase();
+    const messageCount = messages.length;
+    
+    // Generate mock summary based on first message content
+    if (firstUserMessage.includes('build') || firstUserMessage.includes('create')) {
+      return `Discussion focused on building a project with ${messageCount} messages exchanged. Key topics included project planning, technical approach, and implementation details. Next steps involve starting development and setting up the initial structure.`;
+    } else if (firstUserMessage.includes('help') || firstUserMessage.includes('how')) {
+      return `Help session with ${messageCount} messages covering problem-solving and guidance. Solutions were discussed and troubleshooting steps were provided. Follow-up actions include implementing the suggested approaches.`;
+    } else if (firstUserMessage.includes('learn') || firstUserMessage.includes('explain')) {
+      return `Educational conversation with ${messageCount} messages exploring new concepts and explanations. Key learning points were covered with examples and clarifications. Continued learning and practice were recommended.`;
+    } else {
+      return `General conversation with ${messageCount} messages discussing various topics. The discussion covered multiple aspects of the subject matter with detailed explanations and suggestions for moving forward.`;
+    }
   }
 }
