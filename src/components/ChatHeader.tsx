@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Conversation } from '../types';
+import { Conversation, Project } from '../types';
+import AddChatToProjectModal from './AddChatToProjectModal';
 
 interface ChatHeaderProps {
   conversation: Conversation;
@@ -8,6 +9,8 @@ interface ChatHeaderProps {
   isGeneratingTitle?: boolean;
   showThinkingProcess?: boolean;
   onToggleThinkingProcess?: (enabled: boolean) => void;
+  projects?: Project[];
+  onAddToProject?: (projectId: string, conversationIds: string[]) => void;
 }
 
 // Token estimation function
@@ -38,9 +41,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   onGenerateTitle,
   isGeneratingTitle = false,
   showThinkingProcess = false,
-  onToggleThinkingProcess
+  onToggleThinkingProcess,
+  projects = [],
+  onAddToProject
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAddToProjectModal, setShowAddToProjectModal] = useState(false);
   const memoryUsage = calculateMemoryUsage(conversation);
 
   const handleDeleteClick = () => {
@@ -160,6 +166,20 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </button>
         )}
 
+        {/* Add to Project Button - only show if conversation is not in a project */}
+        {!conversation.projectId && onAddToProject && (
+          <button
+            onClick={() => setShowAddToProjectModal(true)}
+            disabled={projects.length === 0}
+            className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={projects.length === 0 ? "No projects available" : "Add chat to project"}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          </button>
+        )}
+
         {/* Delete Button with confirmation */}
         <button
           onClick={handleDeleteClick}
@@ -181,6 +201,21 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           )}
         </button>
       </div>
+
+      {/* Add to Project Modal */}
+      {showAddToProjectModal && (
+        <AddChatToProjectModal
+          projects={projects}
+          conversationId={conversation.id}
+          conversationTitle={conversation.title}
+          onClose={() => setShowAddToProjectModal(false)}
+          onAddToProject={(projectId, conversationIds) => {
+            if (onAddToProject) {
+              onAddToProject(projectId, conversationIds);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

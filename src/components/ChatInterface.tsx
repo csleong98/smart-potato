@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Conversation } from '../types';
+import { Conversation, Project } from '../types';
 import MessageBubble from './MessageBubble';
 import ChatHeader from './ChatHeader';
 
@@ -19,6 +19,8 @@ interface ChatInterfaceProps {
   onToggleThinkingProcess?: (enabled: boolean) => void;
   onAccessTutorials?: () => void;
   onSetReminder?: () => void;
+  projects?: Project[];
+  onAddToProject?: (projectId: string, conversationIds: string[]) => void;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -36,7 +38,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   showThinkingProcess = false,
   onToggleThinkingProcess,
   onAccessTutorials,
-  onSetReminder
+  onSetReminder,
+  projects = [],
+  onAddToProject
 }) => {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -80,6 +84,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         isGeneratingTitle={isGeneratingTitle}
         showThinkingProcess={showThinkingProcess}
         onToggleThinkingProcess={onToggleThinkingProcess}
+        projects={projects}
+        onAddToProject={onAddToProject}
       />
 
       {/* Messages Container */}

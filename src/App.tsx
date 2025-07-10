@@ -1137,6 +1137,8 @@ When the user asks about their project memories or notes, reference ONLY the con
             onToggleThinkingProcess={setShowThinkingProcess}
             onAccessTutorials={handleAccessTutorials}
             onSetReminder={handleSetReminder}
+            projects={projects}
+            onAddToProject={addConversationsToProject}
             placeholder={
               currentMode === 'create' 
                 ? createStep === 1 
