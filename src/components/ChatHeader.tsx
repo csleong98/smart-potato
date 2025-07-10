@@ -11,6 +11,8 @@ interface ChatHeaderProps {
   onToggleThinkingProcess?: (enabled: boolean) => void;
   projects?: Project[];
   onAddToProject?: (projectId: string, conversationIds: string[]) => void;
+  onUpdateTitle?: (newTitle: string) => void;
+  onSetReminder?: () => void;
 }
 
 // Token estimation function
@@ -43,10 +45,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   showThinkingProcess = false,
   onToggleThinkingProcess,
   projects = [],
-  onAddToProject
+  onAddToProject,
+  onUpdateTitle,
+  onSetReminder
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAddToProjectModal, setShowAddToProjectModal] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState(conversation.title);
   const memoryUsage = calculateMemoryUsage(conversation);
 
   const handleDeleteClick = () => {
@@ -58,12 +65,42 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       // Auto-hide confirmation after 3 seconds
       setTimeout(() => setShowDeleteConfirm(false), 3000);
     }
+    setShowDropdown(false);
   };
 
   const handleGenerateTitle = () => {
     if (onGenerateTitle && !isGeneratingTitle) {
       onGenerateTitle();
     }
+    setShowDropdown(false);
+  };
+
+  const handleTitleEdit = () => {
+    setIsEditingTitle(true);
+    setEditTitle(conversation.title);
+  };
+
+  const handleTitleSave = () => {
+    if (onUpdateTitle && editTitle.trim() && editTitle.trim() !== conversation.title) {
+      onUpdateTitle(editTitle.trim());
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleTitleSave();
+    } else if (e.key === 'Escape') {
+      setIsEditingTitle(false);
+      setEditTitle(conversation.title);
+    }
+  };
+
+  const handleSetReminder = () => {
+    if (onSetReminder) {
+      onSetReminder();
+    }
+    setShowDropdown(false);
   };
 
   // Color coding for memory usage
@@ -90,9 +127,25 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         </div>
         
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-semibold text-gray-900 truncate">
-            {conversation.title}
-          </h1>
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onKeyDown={handleTitleKeyDown}
+              onBlur={handleTitleSave}
+              className="text-lg font-semibold text-gray-900 bg-transparent border-b-2 border-blue-500 focus:outline-none w-full"
+              autoFocus
+            />
+          ) : (
+            <h1 
+              className="text-lg font-semibold text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors duration-200"
+              onClick={handleTitleEdit}
+              title="Click to edit title"
+            >
+              {conversation.title}
+            </h1>
+          )}
           <p className="text-sm text-gray-500">
             {conversation.messages.length} message{conversation.messages.length !== 1 ? 's' : ''} • 
             {' '}Created {new Date(conversation.createdAt).toLocaleDateString()}
@@ -100,7 +153,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         </div>
       </div>
 
-      {/* Right side - Memory indicator and Action buttons */}
+      {/* Right side - Memory indicator and Controls */}
       <div className="flex items-center space-x-4 flex-shrink-0">
         {/* Memory Usage Indicator */}
         <div className="flex items-center space-x-2">
@@ -148,59 +201,109 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </div>
         )}
 
-        {/* Generate Title Button - only show if there are messages */}
-        {conversation.messages.length > 0 && onGenerateTitle && (
+        {/* Ellipse Menu */}
+        <div className="relative">
           <button
-            onClick={handleGenerateTitle}
-            disabled={isGeneratingTitle}
-            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Generate AI title"
-          >
-            {isGeneratingTitle ? (
-              <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            )}
-          </button>
-        )}
-
-        {/* Add to Project Button - only show if conversation is not in a project */}
-        {!conversation.projectId && onAddToProject && (
-          <button
-            onClick={() => setShowAddToProjectModal(true)}
-            disabled={projects.length === 0}
-            className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            title={projects.length === 0 ? "No projects available" : "Add chat to project"}
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+            title="More options"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zM12 13a1 1 0 110-2 1 1 0 010 2zM12 20a1 1 0 110-2 1 1 0 010 2z" />
             </svg>
           </button>
-        )}
 
-        {/* Delete Button with confirmation */}
-        <button
-          onClick={handleDeleteClick}
-          className={`p-2 rounded-lg transition-colors duration-200 ${
-            showDeleteConfirm 
-              ? 'text-red-600 bg-red-50 hover:bg-red-100' 
-              : 'text-gray-500 hover:text-red-600 hover:bg-red-50'
-          }`}
-          title={showDeleteConfirm ? 'Click again to confirm deletion' : 'Delete chat'}
-        >
-          {showDeleteConfirm ? (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+          {/* Dropdown Menu */}
+          {showDropdown && (
+            <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+              {/* Generate Title */}
+              {conversation.messages.length > 0 && onGenerateTitle && (
+                <button
+                  onClick={handleGenerateTitle}
+                  disabled={isGeneratingTitle}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {isGeneratingTitle ? (
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                  ) : (
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  )}
+                  <span>Generate Title</span>
+                </button>
+              )}
+
+              {/* Add to Project */}
+              {!conversation.projectId && onAddToProject && (
+                <button
+                  onClick={() => {
+                    setShowAddToProjectModal(true);
+                    setShowDropdown(false);
+                  }}
+                  disabled={projects.length === 0}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  <span>{projects.length === 0 ? "No projects available" : "Add to Project"}</span>
+                </button>
+              )}
+
+              {/* Set Reminder */}
+              {onSetReminder && (
+                <button
+                  onClick={handleSetReminder}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Set Reminder</span>
+                </button>
+              )}
+
+              {/* Divider */}
+              <div className="my-1 border-t border-gray-200"></div>
+
+              {/* Delete Chat */}
+              <button
+                onClick={handleDeleteClick}
+                className={`w-full px-4 py-2 text-left text-sm flex items-center space-x-2 ${
+                  showDeleteConfirm 
+                    ? 'text-red-600 bg-red-50' 
+                    : 'text-red-600 hover:bg-red-50'
+                }`}
+              >
+                {showDeleteConfirm ? (
+                  <>
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Confirm Delete</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Delete Chat</span>
+                  </>
+                )}
+              </button>
+            </div>
           )}
-        </button>
+        </div>
       </div>
+
+      {/* Click outside to close dropdown */}
+      {showDropdown && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setShowDropdown(false)}
+        />
+      )}
 
       {/* Add to Project Modal */}
       {showAddToProjectModal && (

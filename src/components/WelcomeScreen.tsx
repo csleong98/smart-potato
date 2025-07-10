@@ -15,7 +15,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectMode, onStartChat
     if (inputValue.trim()) {
       onStartChat(inputValue.trim());
     } else {
-      onStartChat();
+      // Use default placeholder text as the first question if no input
+      const defaultMessage = isFirstTime ? "I wanted to be random" : "Hello! How can you help me today?";
+      onStartChat(defaultMessage);
     }
   };
 

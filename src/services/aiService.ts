@@ -566,15 +566,91 @@ Keep this context in mind when responding to help provide more relevant and targ
     }
   }
 
-  // Generate a concise title for a conversation based on the first user message only
+  // Generate a concise title for a conversation based on full context
   async generateChatTitle(messages: Message[]): Promise<string> {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    if (messages.length === 0) {
-      return 'New Chat';
-    }
+    try {
+      if (messages.length === 0) {
+        return 'New Chat';
+      }
 
-    // Get only the first user message
+      // Filter out system messages and get meaningful conversation content
+      const conversationMessages = messages
+        .filter(msg => !msg.content.includes('You are Smart Potato') && !msg.content.includes('CRITICAL INSTRUCTIONS'))
+        .slice(0, 6); // Use first 6 messages for better context
+
+      if (conversationMessages.length === 0) {
+        return 'New Chat';
+      }
+
+      // Create a focused system message for title generation
+      const titleSystemMessage = {
+        role: 'system',
+        content: `Generate a concise, descriptive title (3-5 words max) for this conversation based on the main topic or purpose.
+
+RULES:
+- Focus on the primary subject matter or goal
+- Be specific but concise (e.g., "React Authentication Setup" not "Help with coding")
+- Avoid generic words like "Chat", "Discussion", "Help"
+- Use title case formatting
+- Return ONLY the title, no explanations
+
+EXAMPLES:
+- "Build E-commerce Dashboard"
+- "Python Data Analysis" 
+- "Debug API Integration"
+- "Learn React Hooks"
+- "Design Landing Page"`
+      };
+
+      // Convert messages to API format
+      const apiMessages = [
+        titleSystemMessage,
+        ...conversationMessages.map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        }))
+      ];
+
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'Smart Potato AI Assistant - Title'
+        },
+        body: JSON.stringify({
+          model: MODEL_NAME,
+          messages: apiMessages,
+          temperature: 0.1,
+          max_tokens: 20,
+          top_p: 0.5,
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const generatedTitle = data.choices[0]?.message?.content?.trim() || '';
+      
+      // Clean and validate the title
+      if (generatedTitle && generatedTitle.length <= 50) {
+        return generatedTitle;
+      } else {
+        // Fallback to improved logic based on first user message
+        return this.generateFallbackTitle(conversationMessages);
+      }
+    } catch (error) {
+      console.error('Title generation error:', error);
+      // Fallback to improved logic
+      return this.generateFallbackTitle(messages);
+    }
+  }
+
+  // Improved fallback title generation
+  protected generateFallbackTitle(messages: Message[]): string {
     const firstUserMessage = messages.find(msg => msg.sender === 'user');
     if (!firstUserMessage) {
       return 'New Chat';
@@ -582,34 +658,46 @@ Keep this context in mind when responding to help provide more relevant and targ
 
     const content = firstUserMessage.content.toLowerCase();
     
-    // Mock intelligent title generation based on first user message
-    if (content.includes('build') || content.includes('create') || content.includes('make')) {
+    // Enhanced pattern matching with more specificity
+    if (content.includes('build') || content.includes('create') || content.includes('develop')) {
       if (content.includes('app') || content.includes('application')) {
-        return 'Build App Project';
+        if (content.includes('react')) return 'Build React App';
+        if (content.includes('vue')) return 'Build Vue App';
+        if (content.includes('mobile')) return 'Build Mobile App';
+        return 'Build Application';
       } else if (content.includes('website') || content.includes('web')) {
         return 'Build Website';
+      } else if (content.includes('api')) {
+        return 'Build API';
+      } else if (content.includes('database') || content.includes('db')) {
+        return 'Database Setup';
       } else {
-        return 'Build Project';
+        return 'Development Project';
       }
-    } else if (content.includes('help') || content.includes('how')) {
-      if (content.includes('debug') || content.includes('fix') || content.includes('error')) {
-        return 'Debug Help';
-      } else {
-        return 'Help Request';
-      }
+    } else if (content.includes('debug') || content.includes('fix') || content.includes('error')) {
+      if (content.includes('api')) return 'Debug API Issue';
+      if (content.includes('react')) return 'Fix React Problem';
+      if (content.includes('database')) return 'Database Troubleshooting';
+      return 'Debug Code Issue';
     } else if (content.includes('learn') || content.includes('explain') || content.includes('teach')) {
+      if (content.includes('react')) return 'Learn React';
+      if (content.includes('python')) return 'Learn Python';
+      if (content.includes('javascript')) return 'Learn JavaScript';
       return 'Learning Session';
-    } else if (content.includes('weather')) {
-      return 'Weather Check';
-    } else if (content.includes('code') || content.includes('programming')) {
-      return 'Code Discussion';
+    } else if (content.includes('optimize') || content.includes('improve') || content.includes('performance')) {
+      return 'Code Optimization';
+    } else if (content.includes('design') || content.includes('ui') || content.includes('ux')) {
+      return 'Design Discussion';
     } else {
-      // Use first 2-3 meaningful words as fallback
-      const words = firstUserMessage.content.split(' ')
-        .filter(word => word.length > 2) // Remove small words like "I", "a", "the"
-        .slice(0, 3); // Take first 3 meaningful words
+      // Extract meaningful keywords
+      const words = firstUserMessage.content
+        .split(' ')
+        .filter(word => word.length > 3 && !['with', 'that', 'this', 'from', 'have', 'will', 'want', 'need'].includes(word.toLowerCase()))
+        .slice(0, 3)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+      
       const title = words.join(' ');
-      return title.length > 0 ? title : 'General Chat';
+      return title.length > 0 ? title : 'General Discussion';
     }
   }
 
@@ -882,48 +970,11 @@ export class MockAIService extends AIService {
   async generateChatTitle(messages: Message[]): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    if (messages.length === 0) {
-      return 'New Chat';
-    }
-
-    // Get only the first user message
-    const firstUserMessage = messages.find(msg => msg.sender === 'user');
-    if (!firstUserMessage) {
-      return 'New Chat';
-    }
-
-    const content = firstUserMessage.content.toLowerCase();
-    
-    // Mock intelligent title generation based on first user message
-    if (content.includes('build') || content.includes('create') || content.includes('make')) {
-      if (content.includes('app') || content.includes('application')) {
-        return 'Build App Project';
-      } else if (content.includes('website') || content.includes('web')) {
-        return 'Build Website';
-      } else {
-        return 'Build Project';
-      }
-    } else if (content.includes('help') || content.includes('how')) {
-      if (content.includes('debug') || content.includes('fix') || content.includes('error')) {
-        return 'Debug Help';
-      } else {
-        return 'Help Request';
-      }
-    } else if (content.includes('learn') || content.includes('explain') || content.includes('teach')) {
-      return 'Learning Session';
-    } else if (content.includes('weather')) {
-      return 'Weather Check';
-    } else if (content.includes('code') || content.includes('programming')) {
-      return 'Code Discussion';
-    } else {
-      // Use first 2-3 meaningful words as fallback
-      const words = firstUserMessage.content.split(' ')
-        .filter(word => word.length > 2) // Remove small words like "I", "a", "the"
-        .slice(0, 3); // Take first 3 meaningful words
-      const title = words.join(' ');
-      return title.length > 0 ? title : 'General Chat';
-    }
+    // Use the same improved logic as the real AIService
+    return this.generateFallbackTitle(messages);
   }
+
+
 
   // Generate a mock conversation summary
   async generateSummary(messages: Message[], projectContext?: string): Promise<string> {

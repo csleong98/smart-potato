@@ -543,15 +543,7 @@ When the user asks about their project memories or notes, reference ONLY the con
         projectId: currentView === 'project' ? activeProjectId || undefined : undefined
       };
 
-      // Add greeting message
-      const greetingMessage: Message = {
-        id: uuidv4(),
-        content: generateGreeting(),
-        sender: 'ai',
-        timestamp: new Date()
-      };
-
-      // Add user's initial message
+      // Add user's initial message (no greeting message)
       const userMessage: Message = {
         id: uuidv4(),
         content: initialMessage,
@@ -559,7 +551,7 @@ When the user asks about their project memories or notes, reference ONLY the con
         timestamp: new Date()
       };
 
-      newConversation.messages = [greetingMessage, userMessage];
+      newConversation.messages = [userMessage];
 
       setConversations(prev => [newConversation, ...prev]);
       setActiveConversationId(newConversation.id);
@@ -596,10 +588,11 @@ When the user asks about their project memories or notes, reference ONLY the con
         markUserAsReturning();
       }
 
-      // Get AI response to the initial message
+      // Show loading state and get AI response to the initial message
+      setIsLoading(true);
       (async () => {
         try {
-          const result = await aiService.sendMessageWithThinking([greetingMessage, userMessage], showThinkingProcess, activeProject?.context);
+          const result = await aiService.sendMessageWithThinking([userMessage], showThinkingProcess, activeProject?.context);
           const aiResponse: Message = {
             id: uuidv4(),
             content: result.response,
@@ -640,12 +633,14 @@ When the user asks about their project memories or notes, reference ONLY the con
           }, 100);
         } catch (error) {
           console.error('Error getting AI response:', error);
+        } finally {
+          setIsLoading(false);
         }
       })();
     } else {
       createNewConversation();
     }
-  }, [createNewConversation, currentView, activeProjectId, generateGreeting, isFirstTimeUser, markUserAsReturning, aiService, showThinkingProcess, activeProject?.context]);
+  }, [createNewConversation, currentView, activeProjectId, isFirstTimeUser, markUserAsReturning, aiService, showThinkingProcess, activeProject?.context]);
 
   // Select conversation
   const handleSelectConversation = useCallback((id: string) => {
@@ -683,6 +678,22 @@ When the user asks about their project memories or notes, reference ONLY the con
       setIsGeneratingTitle(false);
     }
   }, [activeConversationId, activeConversation, aiService]);
+
+  // Update conversation title manually
+  const updateConversationTitle = useCallback((newTitle: string) => {
+    if (!activeConversationId) return;
+
+    setConversations(prev => prev.map(conv => {
+      if (conv.id === activeConversationId) {
+        return {
+          ...conv,
+          title: newTitle,
+          updatedAt: new Date()
+        };
+      }
+      return conv;
+    }));
+  }, [activeConversationId]);
 
   // Project management functions
   const createProject = useCallback((name: string, description?: string) => {
@@ -1139,6 +1150,7 @@ When the user asks about their project memories or notes, reference ONLY the con
             onSetReminder={handleSetReminder}
             projects={projects}
             onAddToProject={addConversationsToProject}
+            onUpdateTitle={updateConversationTitle}
             placeholder={
               currentMode === 'create' 
                 ? createStep === 1 

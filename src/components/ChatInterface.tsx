@@ -21,6 +21,7 @@ interface ChatInterfaceProps {
   onSetReminder?: () => void;
   projects?: Project[];
   onAddToProject?: (projectId: string, conversationIds: string[]) => void;
+  onUpdateTitle?: (newTitle: string) => void;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -40,7 +41,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onAccessTutorials,
   onSetReminder,
   projects = [],
-  onAddToProject
+  onAddToProject,
+  onUpdateTitle
 }) => {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -86,6 +88,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onToggleThinkingProcess={onToggleThinkingProcess}
         projects={projects}
         onAddToProject={onAddToProject}
+        onUpdateTitle={onUpdateTitle}
+        onSetReminder={onSetReminder}
       />
 
       {/* Messages Container */}
@@ -197,16 +201,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               >
                 <span>📚</span>
                 <span>Tutorials</span>
-              </button>
-            )}
-            {onSetReminder && conversation.messages.length > 0 && (
-              <button
-                onClick={onSetReminder}
-                className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded transition-colors duration-200 flex items-center space-x-1"
-                title="Set reminder for this conversation"
-              >
-                <span>🔔</span>
-                <span>Remind me</span>
               </button>
             )}
           </div>
