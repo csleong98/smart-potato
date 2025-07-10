@@ -12,21 +12,21 @@ const OnboardingButtons: React.FC<OnboardingButtonsProps> = ({ onSelectMode }) =
       title: 'Create something',
       description: 'Build creative projects, apps, or content with AI assistance',
       icon: '✨',
-      gradient: 'from-pastel-pink to-pastel-purple'
+      bgColor: 'bg-white hover:bg-gray-50'
     },
     {
       mode: 'research' as OnboardingMode,
       title: 'Research about a topic',
       description: 'Deep dive into subjects with comprehensive analysis',
       icon: '📚',
-      gradient: 'from-pastel-green to-pastel-yellow'
+      bgColor: 'bg-white hover:bg-gray-50'
     },
     {
       mode: 'build' as OnboardingMode,
       title: 'Build a workflow',
       description: 'Learn how to prompt effectively for building projects',
       icon: '🏗️',
-      gradient: 'from-pastel-yellow to-pastel-orange'
+      bgColor: 'bg-white hover:bg-gray-50'
     }
   ];
 
@@ -36,7 +36,7 @@ const OnboardingButtons: React.FC<OnboardingButtonsProps> = ({ onSelectMode }) =
         <button
           key={button.mode}
           onClick={() => onSelectMode(button.mode)}
-          className={`bg-gradient-to-br ${button.gradient} p-6 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border border-white/50 hover:scale-105 text-left group`}
+          className={`${button.bgColor} p-6 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-gray-300 hover:scale-105 text-left group`}
         >
           <div className="flex items-start space-x-4">
             <div className="text-3xl group-hover:scale-110 transition-transform duration-300">

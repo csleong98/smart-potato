@@ -23,7 +23,7 @@ function App() {
   const [buildStep, setBuildStep] = useState(0);
   const [createStep, setCreateStep] = useState(0);
   const [researchStep, setResearchStep] = useState(0);
-  const [showThinkingProcess, setShowThinkingProcess] = useState(false);
+  const [showThinkingProcess, setShowThinkingProcess] = useState(true);
   
   // Projects state
   const [projects, setProjects] = useState<Project[]>([]);

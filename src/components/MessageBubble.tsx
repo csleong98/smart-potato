@@ -19,8 +19,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         <div className={`flex-shrink-0 ${isUser ? 'ml-3' : 'mr-3'}`}>
           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
             isUser 
-              ? 'bg-gradient-to-br from-blue-400 to-blue-600 text-white' 
-              : 'bg-gradient-to-br from-pastel-purple to-pastel-pink text-purple-600'
+              ? 'bg-blue-500 text-white' 
+              : 'bg-gray-100 text-gray-600'
           }`}>
             {isUser ? '👤' : '🥔'}
           </div>

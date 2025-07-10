@@ -87,7 +87,7 @@ const AddChatToProjectModal: React.FC<AddChatToProjectModalProps> = ({
                       className="sr-only"
                     />
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 bg-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
                         <span className="text-white text-sm font-semibold">
                           {project.name.charAt(0).toUpperCase()}
                         </span>

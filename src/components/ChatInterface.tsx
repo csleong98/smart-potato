@@ -77,7 +77,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-slate-50 to-white">
+    <div className="flex flex-col h-full bg-gray-50">
       {/* Chat Header */}
       <ChatHeader 
         conversation={conversation}
@@ -113,7 +113,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <div className="flex justify-start mb-4">
                 <div className="flex max-w-[80%]">
                   <div className="flex-shrink-0 mr-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pastel-purple to-pastel-pink text-purple-600 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center">
                       🥔
                     </div>
                   </div>

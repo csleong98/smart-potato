@@ -46,7 +46,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gray-600 rounded-lg flex items-center justify-center">
               <span className="text-white text-lg font-semibold">
                 {project.name.charAt(0).toUpperCase()}
               </span>

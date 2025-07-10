@@ -33,8 +33,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-pastel-purple to-pastel-pink rounded-lg flex items-center justify-center">
-            <span className="text-purple-600 font-bold text-sm">🥔</span>
+          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                          <span className="text-gray-600 font-bold text-sm">🥔</span>
           </div>
           <h1 className="text-lg font-semibold text-gray-800">Smart Potato</h1>
         </div>
@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-4">
         <button
           onClick={onNewConversation}
-          className="w-full bg-gradient-to-r from-pastel-blue to-pastel-purple text-gray-700 px-4 py-2 rounded-lg hover:shadow-md transition-all duration-200 border border-gray-200 hover:border-purple-200"
+                      className="w-full bg-white text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-all duration-200 border border-gray-200 hover:border-gray-300"
         >
           + New Chat
         </button>

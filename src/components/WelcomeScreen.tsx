@@ -32,7 +32,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectMode, onStartChat
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
       <div className="text-center mb-12">
         <div className="mb-6">
-          <div className="w-20 h-20 bg-gradient-to-br from-pastel-purple to-pastel-pink rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
             <span className="text-4xl">🥔</span>
           </div>
         </div>

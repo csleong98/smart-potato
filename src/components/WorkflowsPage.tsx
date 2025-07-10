@@ -339,7 +339,7 @@ const WorkflowsPage: React.FC<WorkflowsPageProps> = ({
             </div>
 
             {/* Custom Workflow Option */}
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-8 text-center">
+            <div className="bg-gray-50 rounded-xl p-8 text-center">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Need Something Custom?</h3>
               <p className="text-gray-600 mb-6">
                 Create your own workflow from scratch with our visual editor

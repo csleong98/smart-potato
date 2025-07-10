@@ -121,7 +121,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       {/* Left side - Title */}
       <div className="flex items-center space-x-3 flex-1 min-w-0">
         <div className="flex-shrink-0">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pastel-purple to-pastel-pink text-purple-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center">
             💬
           </div>
         </div>
@@ -176,30 +176,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </div>
         </div>
 
-        {/* Thinking Process Toggle */}
-        {onToggleThinkingProcess && (
-          <div className="flex items-center space-x-2 px-2 py-1 rounded-lg bg-gray-50">
-            <span className={`text-xs font-medium ${showThinkingProcess ? 'text-blue-600' : 'text-gray-500'}`}>
-              🧠 Thinking
-            </span>
-            <button
-              onClick={() => onToggleThinkingProcess(!showThinkingProcess)}
-              className={`relative inline-flex items-center h-5 w-9 rounded-full transition-colors duration-200 ${
-                showThinkingProcess ? 'bg-blue-500' : 'bg-gray-300'
-              }`}
-              title={showThinkingProcess ? 'Disable thinking process capture' : 'Enable thinking process capture'}
-            >
-              <span
-                className={`inline-block w-3 h-3 bg-white rounded-full transition-transform duration-200 ${
-                  showThinkingProcess ? 'translate-x-5' : 'translate-x-1'
-                }`}
-              />
-            </button>
-            {showThinkingProcess && (
-              <span className="text-xs text-blue-600 font-medium">ON</span>
-            )}
-          </div>
-        )}
+
 
         {/* Ellipse Menu */}
         <div className="relative">
@@ -251,21 +228,46 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                 </button>
               )}
 
-              {/* Set Reminder */}
-              {onSetReminder && (
-                <button
-                  onClick={handleSetReminder}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>Set Reminder</span>
-                </button>
-              )}
+                             {/* Set Reminder */}
+               {onSetReminder && (
+                 <button
+                   onClick={handleSetReminder}
+                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                 >
+                   <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                   </svg>
+                   <span>Set Reminder</span>
+                 </button>
+               )}
 
-              {/* Divider */}
-              <div className="my-1 border-t border-gray-200"></div>
+               {/* Thinking Process Toggle */}
+               {onToggleThinkingProcess && (
+                 <button
+                   onClick={() => {
+                     onToggleThinkingProcess(!showThinkingProcess);
+                     setShowDropdown(false);
+                   }}
+                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                 >
+                   <div className="flex items-center space-x-2">
+                     <span className="text-gray-600">🧠</span>
+                     <span>Thinking Process</span>
+                   </div>
+                   <div className={`relative inline-flex items-center h-4 w-7 rounded-full transition-colors duration-200 ${
+                     showThinkingProcess ? 'bg-blue-500' : 'bg-gray-300'
+                   }`}>
+                     <span
+                       className={`inline-block w-2.5 h-2.5 bg-white rounded-full transition-transform duration-200 ${
+                         showThinkingProcess ? 'translate-x-3.5' : 'translate-x-0.5'
+                       }`}
+                     />
+                   </div>
+                 </button>
+               )}
+
+               {/* Divider */}
+               <div className="my-1 border-t border-gray-200"></div>
 
               {/* Delete Chat */}
               <button

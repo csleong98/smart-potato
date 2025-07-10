@@ -45,7 +45,7 @@ const ProjectListItem: React.FC<ProjectListItemProps> = ({
       <div className="grid grid-cols-12 gap-4 items-center">
         {/* Project Name */}
         <div className="col-span-4 flex items-center space-x-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 bg-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
             <span className="text-white text-sm font-semibold">
               {project.name.charAt(0).toUpperCase()}
             </span>

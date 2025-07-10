@@ -31,7 +31,7 @@ const ProjectChatsList: React.FC<ProjectChatsListProps> = ({
         <div className="p-4 border-b border-gray-200">
           <button
             onClick={onNewConversation}
-            className="w-full bg-gradient-to-r from-pastel-blue to-pastel-purple text-gray-700 px-4 py-2 rounded-lg hover:shadow-md transition-all duration-200 border border-gray-200 hover:border-purple-200 flex items-center justify-center"
+            className="w-full bg-white text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-all duration-200 border border-gray-200 hover:border-gray-300 flex items-center justify-center"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -109,7 +109,7 @@ const ProjectChatsList: React.FC<ProjectChatsListProps> = ({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-white p-8">
+              <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
         {activeConversationId ? (
           <div className="text-center text-gray-500">
             <div className="text-4xl mb-4">💬</div>
