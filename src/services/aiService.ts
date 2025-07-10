@@ -566,81 +566,65 @@ Keep this context in mind when responding to help provide more relevant and targ
     }
   }
 
-  // Generate a concise title for a conversation based on full context
+  // Generate a concise title for a conversation based on user messages
   async generateChatTitle(messages: Message[]): Promise<string> {
     try {
       if (messages.length === 0) {
         return 'New Chat';
       }
 
-      // Filter out system messages and get meaningful conversation content
-      const conversationMessages = messages
-        .filter(msg => !msg.content.includes('You are Smart Potato') && !msg.content.includes('CRITICAL INSTRUCTIONS'))
-        .slice(0, 6); // Use first 6 messages for better context
+      // Extract only user messages for title generation
+      const userMessages = messages
+        .filter(msg => msg.sender === 'user' && 
+                !msg.content.includes('You are Smart Potato') && 
+                !msg.content.includes('CRITICAL INSTRUCTIONS'))
+        .slice(0, 3); // Use up to 3 user messages
 
-      if (conversationMessages.length === 0) {
+      if (userMessages.length === 0) {
         return 'New Chat';
       }
 
-      // Create a focused system message for title generation
-      const titleSystemMessage = {
-        role: 'system',
-        content: `Generate a concise, descriptive title (3-5 words max) for this conversation based on the main topic or purpose.
+      // Combine user messages for context
+      const userContent = userMessages
+        .map(msg => msg.content)
+        .join('\n');
 
-RULES:
-- Focus on the primary subject matter or goal
-- Be specific but concise (e.g., "React Authentication Setup" not "Help with coding")
-- Avoid generic words like "Chat", "Discussion", "Help"
-- Use title case formatting
-- Return ONLY the title, no explanations
+      const titlePrompt = `Based on what the user is asking about, generate a concise 2-4 word title that captures the main topic:
 
-EXAMPLES:
-- "Build E-commerce Dashboard"
+USER REQUESTS:
+${userContent}
+
+Generate a descriptive title (2-4 words max) that captures what this conversation is about. Be specific and avoid generic words.
+
+Examples:
+- "React Authentication Setup"
 - "Python Data Analysis" 
-- "Debug API Integration"
-- "Learn React Hooks"
-- "Design Landing Page"`
-      };
+- "Debug CSS Issues"
+- "Learn TypeScript"
+- "API Integration Help"
 
-      // Convert messages to API format
-      const apiMessages = [
-        titleSystemMessage,
-        ...conversationMessages.map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: msg.content
-        }))
-      ];
+Title:`;
 
-      const response = await fetch(OPENROUTER_API_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'Smart Potato AI Assistant - Title'
-        },
-        body: JSON.stringify({
-          model: MODEL_NAME,
-          messages: apiMessages,
-          temperature: 0.1,
-          max_tokens: 20,
-          top_p: 0.5,
-        })
-      });
+      const response = await this.sendMessage([{
+        id: 'title-prompt',
+        content: titlePrompt,
+        sender: 'user',
+        timestamp: new Date()
+      }]);
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const generatedTitle = data.choices[0]?.message?.content?.trim() || '';
+      // Clean the AI response to extract just the title
+      const generatedTitle = response
+        .replace(/['"]/g, '') // Remove quotes
+        .replace(/^title:\s*/i, '') // Remove "Title:" prefix
+        .replace(/^\d+\.\s*/, '') // Remove numbering
+        .split('\n')[0] // Take first line only
+        .trim();
       
-      // Clean and validate the title
-      if (generatedTitle && generatedTitle.length <= 50) {
+      if (generatedTitle && generatedTitle.length > 0 && generatedTitle.length <= 50) {
         return generatedTitle;
       } else {
-        // Fallback to improved logic based on first user message
-        return this.generateFallbackTitle(conversationMessages);
+        // Fallback to improved logic based on user messages
+        return this.generateFallbackTitle(userMessages);
       }
     } catch (error) {
       console.error('Title generation error:', error);
@@ -968,10 +952,51 @@ export class MockAIService extends AIService {
   }
 
   async generateChatTitle(messages: Message[]): Promise<string> {
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate AI processing time
     
-    // Use the same improved logic as the real AIService
-    return this.generateFallbackTitle(messages);
+    if (messages.length === 0) {
+      return 'New Chat';
+    }
+
+    // Extract only user messages for analysis (same as real AI service)
+    const userMessages = messages.filter(msg => msg.sender === 'user');
+    
+    if (userMessages.length === 0) {
+      return 'New Chat';
+    }
+
+    // Analyze user messages for mock intelligent titles
+    const userText = userMessages
+      .map(msg => msg.content.toLowerCase())
+      .join(' ');
+
+    // Simulate AI analysis with pattern matching based on user requests
+    if (userText.includes('react') && (userText.includes('component') || userText.includes('hook'))) {
+      return 'React Development';
+    } else if (userText.includes('python') && userText.includes('data')) {
+      return 'Python Data Analysis';
+    } else if (userText.includes('debug') || userText.includes('error') || userText.includes('fix')) {
+      return 'Debug Code Issue';
+    } else if (userText.includes('design') || userText.includes('ui') || userText.includes('ux')) {
+      return 'Design Discussion';
+    } else if (userText.includes('learn') || userText.includes('tutorial') || userText.includes('how to')) {
+      return 'Learning Session';
+    } else if (userText.includes('build') || userText.includes('create') || userText.includes('make')) {
+      return 'Build Project';
+    } else if (userText.includes('api') && userText.includes('integration')) {
+      return 'API Integration';
+    } else if (userText.includes('database') || userText.includes('sql')) {
+      return 'Database Work';
+    } else if (userText.includes('css') || userText.includes('style') || userText.includes('layout')) {
+      return 'CSS Styling';
+    } else if (userText.includes('javascript') || userText.includes('js')) {
+      return 'JavaScript Help';
+    } else if (userText.includes('typescript') || userText.includes('ts')) {
+      return 'TypeScript Help';
+    } else {
+      // Fallback to improved logic based on user messages
+      return this.generateFallbackTitle(userMessages);
+    }
   }
 
 

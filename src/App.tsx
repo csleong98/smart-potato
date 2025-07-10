@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Message, Conversation, OnboardingMode, Project, Workflow, Integration, IntegrationType, Reminder } from './types';
 import { AIService, MockAIService } from './services/aiService';
@@ -24,6 +24,11 @@ function App() {
   const [createStep, setCreateStep] = useState(0);
   const [researchStep, setResearchStep] = useState(0);
   const [showThinkingProcess, setShowThinkingProcess] = useState(true);
+  
+  // Chat organization state
+  const [isGroupedView, setIsGroupedView] = useState(false);
+  const [groupedConversations, setGroupedConversations] = useState<{ [key: string]: Conversation[] }>({});
+  const [isTidying, setIsTidying] = useState(false);
   
   // Projects state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -326,10 +331,9 @@ function App() {
     };
     addMessage(activeConversationId, userMessage);
 
-    // Check if this is the first user message and auto-generate title
-    const conversation = conversations.find(c => c.id === activeConversationId);
-    const isFirstUserMessage = conversation && 
-      conversation.messages.filter(msg => msg.sender === 'user').length === 0;
+    // Check if this is the first user message (before adding current message)
+    const isFirstUserMessage = activeConversation && 
+      activeConversation.messages.filter(msg => msg.sender === 'user').length === 0;
 
     // Get AI response
     setIsLoading(true);
@@ -398,11 +402,13 @@ When the user asks about their project memories or notes, reference ONLY the con
       };
       addMessage(activeConversationId, aiMessage);
 
-      // Auto-generate title after first user message
-      if (isFirstUserMessage) {
+      // Auto-generate title after first user message and AI response
+      if (isFirstUserMessage && activeConversation?.title === 'New Chat') {
         setTimeout(async () => {
           try {
-            const newTitle = await aiService.generateChatTitle([userMessage]);
+            // Get the updated conversation with the new AI message
+            const allMessages = [...(activeConversation?.messages || []), userMessage, aiMessage];
+            const newTitle = await aiService.generateChatTitle(allMessages);
             setConversations(prev => prev.map(conv => {
               if (conv.id === activeConversationId) {
                 return {
@@ -416,7 +422,7 @@ When the user asks about their project memories or notes, reference ONLY the con
           } catch (error) {
             console.error('Error auto-generating title:', error);
           }
-        }, 100); // Small delay to ensure UI updates smoothly
+        }, 1000); // Small delay to ensure all messages are processed
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -613,10 +619,11 @@ When the user asks about their project memories or notes, reference ONLY the con
             return conv;
           }));
 
-          // Auto-generate title after first exchange
+          // Auto-generate title after first exchange with improved context
           setTimeout(async () => {
             try {
-              const newTitle = await aiService.generateChatTitle([userMessage]);
+              const conversationMessages = [userMessage, aiResponse];
+              const newTitle = await aiService.generateChatTitle(conversationMessages);
               setConversations(prev => prev.map(conv => {
                 if (conv.id === newConversation.id) {
                   return {
@@ -630,7 +637,7 @@ When the user asks about their project memories or notes, reference ONLY the con
             } catch (error) {
               console.error('Error auto-generating title:', error);
             }
-          }, 100);
+          }, 500); // Small delay to ensure all messages are processed
         } catch (error) {
           console.error('Error getting AI response:', error);
         } finally {
@@ -1042,6 +1049,193 @@ When the user asks about their project memories or notes, reference ONLY the con
     setResearchStep(0);
   }, []);
 
+  // AI-powered conversation grouping
+  const groupConversationsByTopic = useCallback(async (conversations: Conversation[], includeAllChats: boolean = false): Promise<{ [key: string]: Conversation[] }> => {
+    if (conversations.length <= 1) return {};
+
+    let conversationsToGroup = conversations;
+    
+    // Only exclude recent chats on initial grouping, not when user manually re-tides
+    if (!includeAllChats) {
+      const now = new Date();
+      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+      
+      conversationsToGroup = conversations.filter(conv => {
+        const isRecent = new Date(conv.createdAt) > fiveMinutesAgo;
+        const hasDefaultTitle = conv.title === 'New Chat' || conv.title.startsWith('Chat ');
+        return !isRecent && !hasDefaultTitle;
+      });
+    }
+
+    if (conversationsToGroup.length <= 1) return {};
+
+    try {
+      // Extract titles for AI analysis
+      const titles = conversationsToGroup.map(conv => conv.title);
+
+      // Create AI prompt for intelligent grouping
+      const systemPrompt = `You are an expert at organizing and categorizing chat conversations. Your task is to analyze chat titles and group them into logical, meaningful categories.
+
+INSTRUCTIONS:
+1. Group similar chat titles into logical categories (3-8 groups max)
+2. Create descriptive group names that capture the essence of the conversations
+3. Each group should have at least 1 conversation
+4. If some conversations don't fit well into any group, put them in "Others"
+5. Return ONLY a JSON object in this exact format:
+
+{
+  "Group Name 1": [0, 2, 5],
+  "Group Name 2": [1, 3],
+  "Others": [4, 6]
+}
+
+Where the numbers are the index positions of the titles in the original list.
+
+EXAMPLE:
+Input: ["Build React App", "Learn Python", "Debug CSS Issue", "Create Landing Page", "Fix API Error"]
+Output: {
+  "Development & Building": [0, 3],
+  "Learning": [1],
+  "Problem Solving": [2, 4]
+}
+
+Remember: Return ONLY the JSON object, no explanations or additional text.`;
+
+      const userPrompt = `Please group these chat titles:\n${titles.map((title, i) => `${i}: ${title}`).join('\n')}`;
+
+      // Call AI service
+      const response = await aiService.sendMessage([
+        { id: 'system', content: systemPrompt, sender: 'ai' as const, timestamp: new Date() },
+        { id: 'user', content: userPrompt, sender: 'user' as const, timestamp: new Date() }
+      ]);
+
+      // Parse AI response
+      let groupingResult: { [key: string]: number[] };
+      try {
+        // Extract JSON from response (in case AI adds extra text)
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error('No JSON found in response');
+        }
+        groupingResult = JSON.parse(jsonMatch[0]);
+      } catch (parseError) {
+        console.warn('Failed to parse AI grouping response:', response);
+        throw parseError;
+      }
+
+      // Convert AI grouping to our format
+      const groups: { [key: string]: Conversation[] } = {};
+      
+      Object.entries(groupingResult).forEach(([groupName, indices]) => {
+        const conversations = indices
+          .filter(index => index >= 0 && index < conversationsToGroup.length)
+          .map(index => conversationsToGroup[index]);
+        
+        if (conversations.length > 0) {
+          groups[groupName] = conversations;
+        }
+      });
+
+      // Debug logging (only in development)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🤖 AI Grouping Result:', {
+          inputTitles: titles,
+          aiResponse: response,
+          parsedGrouping: groupingResult,
+          finalGroups: Object.keys(groups).map(key => `${key} (${groups[key].length})`)
+        });
+      }
+
+      return groups;
+
+    } catch (error) {
+      console.error('AI grouping failed, falling back to simple grouping:', error);
+      
+      // Fallback to basic grouping if AI fails
+      const groups: { [key: string]: Conversation[] } = {};
+      
+      // Simple keyword-based fallback
+      const keywordGroups = {
+        'Development': ['build', 'create', 'develop', 'code', 'app', 'website', 'react', 'python', 'javascript', 'api'],
+        'Learning': ['learn', 'tutorial', 'guide', 'explain', 'understand', 'how'],
+        'Problem Solving': ['debug', 'fix', 'error', 'issue', 'problem', 'help', 'solve'],
+        'Design': ['design', 'ui', 'ux', 'style', 'layout']
+      };
+
+      const usedConversations = new Set<string>();
+
+      Object.entries(keywordGroups).forEach(([groupName, keywords]) => {
+        const matching = conversationsToGroup.filter(conv => {
+          if (usedConversations.has(conv.id)) return false;
+          const title = conv.title.toLowerCase();
+          return keywords.some(keyword => title.includes(keyword));
+        });
+
+        if (matching.length > 0) {
+          groups[groupName] = matching;
+          matching.forEach(conv => usedConversations.add(conv.id));
+        }
+      });
+
+      // Put remaining in Others
+      const remaining = conversationsToGroup.filter(conv => !usedConversations.has(conv.id));
+      if (remaining.length > 0) {
+        groups['Others'] = remaining;
+      }
+
+      return groups;
+    }
+  }, [aiService]);
+
+  // Handle tidy chats functionality
+  const handleTidyChats = useCallback(async () => {
+    if (conversations.length <= 1 || isTidying) return;
+
+    setIsTidying(true);
+
+    try {
+      // Include all chats if already in grouped view, otherwise exclude recent ones
+      const includeAllChats = isGroupedView;
+      const groups = await groupConversationsByTopic(conversations, includeAllChats);
+      setGroupedConversations(groups);
+      setIsGroupedView(true);
+      
+      const groupCount = Object.keys(groups).length;
+      const message = includeAllChats 
+        ? `Regrouped all ${conversations.length} chats into ${groupCount} groups`
+        : `Organized ${conversations.length} chats into ${groupCount} groups`;
+      showSnackbar(message, 'success');
+    } catch (error) {
+      console.error('Error organizing chats:', error);
+      showSnackbar('Failed to organize chats. Please try again.', 'error');
+    } finally {
+      setIsTidying(false);
+    }
+  }, [conversations, groupConversationsByTopic, showSnackbar, isGroupedView, isTidying]);
+
+  // Handle view reset (can be called from elsewhere if needed)
+  const handleResetView = useCallback(() => {
+    setIsGroupedView(false);
+    setGroupedConversations({});
+    showSnackbar('Switched back to list view', 'info');
+  }, [showSnackbar]);
+
+  // Update grouped conversations when conversations change (if in grouped view)
+  useEffect(() => {
+    if (isGroupedView && conversations.length > 0) {
+      // When auto-updating groups, include all chats (like a re-tidy)
+      const updateGroups = async () => {
+        try {
+          const groups = await groupConversationsByTopic(conversations, true);
+          setGroupedConversations(groups);
+        } catch (error) {
+          console.error('Error updating groups:', error);
+        }
+      };
+      updateGroups();
+    }
+  }, [conversations, isGroupedView, groupConversationsByTopic]);
+
   // Determine what to show in the main area  
   const shouldShowTutorial = isFirstTimeUser && currentView === 'chat' && !activeConversationId;
   const showWelcome = currentView === 'chat' && !activeConversationId;
@@ -1065,6 +1259,11 @@ When the user asks about their project memories or notes, reference ONLY the con
         onNavigateToIntegrations={navigateToIntegrations}
         onNavigateToReminders={navigateToReminders}
         currentView={currentView}
+        onTidyChats={handleTidyChats}
+        onUntidyChats={handleResetView}
+        isGroupedView={isGroupedView}
+        groupedConversations={groupedConversations}
+        isTidying={isTidying}
       />
 
       {/* Main Content Area */}

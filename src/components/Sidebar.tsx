@@ -13,6 +13,11 @@ interface SidebarProps {
   onNavigateToIntegrations?: () => void;
   onNavigateToReminders?: () => void;
   currentView?: 'chat' | 'projects' | 'project' | 'workflows' | 'integrations' | 'reminders';
+  onTidyChats?: () => void;
+  onUntidyChats?: () => void;
+  isGroupedView?: boolean;
+  groupedConversations?: { [key: string]: Conversation[] };
+  isTidying?: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -26,7 +31,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   onNavigateToWorkflows,
   onNavigateToIntegrations,
   onNavigateToReminders,
-  currentView = 'chat'
+  currentView = 'chat',
+  onTidyChats,
+  onUntidyChats,
+  isGroupedView = false,
+  groupedConversations = {},
+  isTidying = false
 }) => {
   return (
     <div className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
@@ -137,21 +147,156 @@ const Sidebar: React.FC<SidebarProps> = ({
       {(currentView === 'chat' || currentView === 'project') && (
         <div className="flex-1 overflow-y-auto">
           <div className="p-4 space-y-2">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-              Recent Conversations
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Recent Chats
+              </h3>
+              {conversations.length > 1 && onTidyChats && (
+                <button
+                  onClick={onTidyChats}
+                  disabled={isTidying}
+                  className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={isTidying ? "AI is organizing your chats..." : "Use AI to organize chats into smart groups"}
+                >
+                  {isTidying ? (
+                    <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <span className="text-xs">🧹</span>
+                  )}
+                  <span>{isTidying ? 'Tidying...' : 'Tidy'}</span>
+                </button>
+              )}
+            </div>
+            
             {conversations.length === 0 ? (
               <div className="text-gray-400 text-sm italic">
                 No conversations yet
               </div>
+            ) : isGroupedView ? (
+              /* Grouped View */
+              <div className="space-y-4">
+                {/* Show recent/new chats at the top only if they're not already in groups */}
+                {(() => {
+                  const now = new Date();
+                  const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+                  const recentChats = conversations.filter(conv => {
+                    const isRecent = new Date(conv.createdAt) > fiveMinutesAgo;
+                    const hasDefaultTitle = conv.title === 'New Chat' || conv.title.startsWith('Chat ');
+                    const isInGroups = Object.values(groupedConversations).some(group => 
+                      group.some(groupConv => groupConv.id === conv.id)
+                    );
+                    return (isRecent || hasDefaultTitle) && !isInGroups;
+                  });
+                  
+                  return recentChats.length > 0 ? (
+                    <div className="space-y-1">
+                      {recentChats.map((conversation) => (
+                        <div
+                          key={conversation.id}
+                          className={`relative group rounded-lg transition-all duration-200 ${
+                            activeConversationId === conversation.id
+                              ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                              : 'hover:bg-gray-50 text-gray-600'
+                          }`}
+                        >
+                          <button
+                            onClick={() => onSelectConversation(conversation.id)}
+                            className="w-full text-left p-3 pr-10"
+                          >
+                            <div className="truncate text-sm font-medium">
+                              {conversation.title}
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">
+                              {new Date(conversation.updatedAt).toLocaleDateString()}
+                            </div>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteConversation(conversation.id);
+                            }}
+                            className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-red-100 rounded text-red-500 hover:text-red-700"
+                            title="Delete conversation"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM4 5a2 2 0 012-2h8a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 102 0v3a1 1 0 11-2 0V9zm4 0a1 1 0 10-2 0v3a1 1 0 102 0V9z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                      <div className="my-3 border-t border-gray-200"></div>
+                    </div>
+                  ) : null;
+                })()}
+                
+                {/* Show grouped conversations */}
+                {Object.entries(groupedConversations).map(([groupName, groupConversations]) => (
+                  <div key={groupName} className="space-y-1">
+                    <h4 className="text-xs font-medium text-gray-600 px-2 py-1 bg-gray-50 rounded">
+                      {groupName} ({groupConversations.length})
+                    </h4>
+                    {groupConversations.map((conversation) => (
+                      <div
+                        key={conversation.id}
+                        className={`relative group rounded-lg transition-all duration-200 ml-2 ${
+                          activeConversationId === conversation.id
+                            ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                            : 'hover:bg-gray-50 text-gray-600'
+                        }`}
+                      >
+                        <button
+                          onClick={() => onSelectConversation(conversation.id)}
+                          className="w-full text-left p-3 pr-10"
+                        >
+                          <div className="truncate text-sm font-medium">
+                            {conversation.title}
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">
+                            {new Date(conversation.updatedAt).toLocaleDateString()}
+                          </div>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteConversation(conversation.id);
+                          }}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-red-100 rounded text-red-500 hover:text-red-700"
+                          title="Delete conversation"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9zM4 5a2 2 0 012-2h8a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 102 0v3a1 1 0 11-2 0V9zm4 0a1 1 0 10-2 0v3a1 1 0 102 0V9z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
             ) : (
+              /* Regular View */
               conversations.map((conversation) => (
                 <div
                   key={conversation.id}
                   className={`relative group rounded-lg transition-all duration-200 ${
                     activeConversationId === conversation.id
-                      ? 'bg-pastel-purple text-purple-800 border border-purple-200'
-                      : 'hover:bg-pastel-gray text-gray-600'
+                      ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                      : 'hover:bg-gray-50 text-gray-600'
                   }`}
                 >
                   <button
