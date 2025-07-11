@@ -37,7 +37,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectMode, onStartChat
           </div>
         </div>
         <h1 className="text-4xl font-bold text-gray-800 mb-4">
-          {isFirstTime ? "Let's get you started, Chee Seng" : "Welcome back! 👋"}
+          {isFirstTime ? "Let's get you started! 🚀" : "Welcome back! 👋"}
         </h1>
         <p className="text-gray-600 text-lg max-w-2xl mx-auto">
           {isFirstTime 
