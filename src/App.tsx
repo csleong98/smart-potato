@@ -20,7 +20,6 @@ function App() {
   const [currentMode, setCurrentMode] = useState<OnboardingMode>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
-  const [buildStep, setBuildStep] = useState(0);
   const [createStep, setCreateStep] = useState(0);
   const [researchStep, setResearchStep] = useState(0);
   const [showThinkingProcess, setShowThinkingProcess] = useState(true);
@@ -107,14 +106,12 @@ function App() {
       if (currentView === 'project') {
         setActiveConversationId(null);
         setCurrentMode(null);
-        setBuildStep(0);
         setCreateStep(0);
         setResearchStep(0);
       } else {
         setCurrentView('chat');
         setActiveConversationId(null);
         setCurrentMode(null);
-        setBuildStep(0);
         setCreateStep(0);
         setResearchStep(0);
         setActiveProjectId(null);
@@ -161,7 +158,6 @@ function App() {
 
     // Reset onboarding states
     setCurrentMode(null);
-    setBuildStep(0);
     setCreateStep(0);
     setResearchStep(0);
 
@@ -197,7 +193,6 @@ function App() {
     if (activeConversationId === conversationId) {
       setActiveConversationId(null);
       setCurrentMode(null);
-      setBuildStep(0);
       setCreateStep(0);
       setResearchStep(0);
     }
@@ -271,25 +266,7 @@ function App() {
       addMessage(newConversation.id, aiMessage);
       setCreateStep(1); // Set to step 1 to show choice buttons
     }
-    // Handle Build workflow specifically
-    else if (mode === 'build') {
-      setIsLoading(true);
-      try {
-        const response = await aiService.getBuildOnboardingResponse('', 0);
-        const aiMessage: Message = {
-          id: uuidv4(),
-          content: response,
-          sender: 'ai',
-          timestamp: new Date()
-        };
-        addMessage(newConversation.id, aiMessage);
-        setBuildStep(1);
-      } catch (error) {
-        console.error('Error in build onboarding:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+
     // Handle Research workflow specifically
     else if (mode === 'research') {
       // Use fixed message for research tutorial intro
@@ -351,15 +328,8 @@ function App() {
         // If they type instead, just continue normally
         response = "Perfect! I'm here to help you dive deep into any topic you're curious about. Whether you need help with academic research, market analysis, fact-checking, or any other research task - just let me know what you'd like to explore!\n\nWhat would you like to research today?";
         setResearchStep(2); // Move to normal conversation mode
-      } else if (currentMode === 'build' && buildStep === 1) {
-        // Only use structured response for first build step
-        const conversationMessages = activeConversation?.messages || [];
-        const fullHistory = [...conversationMessages, userMessage];
-        response = await aiService.getBuildOnboardingResponse(content, buildStep, fullHistory);
-        setBuildStep(2);
       } else if ((currentMode === 'create' && createStep >= 2) || 
-                 (currentMode === 'research' && researchStep >= 2) || 
-                 (currentMode === 'build' && buildStep >= 2)) {
+                 (currentMode === 'research' && researchStep >= 2)) {
         // After first tutorial response, transition to natural conversation with thinking process
         const conversationMessages = activeConversation?.messages || [];
         let contextMessages = [...conversationMessages, userMessage];
@@ -394,7 +364,6 @@ When the user asks about their project memories or notes, reference ONLY the con
         
         // Clear the tutorial mode after natural response - user can now chat normally
         setCurrentMode(null);
-        setBuildStep(0);
         setCreateStep(0);
         setResearchStep(0);
       } else {
@@ -469,7 +438,7 @@ When the user asks about their project memories or notes, reference ONLY the con
     } finally {
       setIsLoading(false);
     }
-  }, [activeConversationId, addMessage, aiService, currentMode, createStep, researchStep, buildStep, activeConversation, conversations, showThinkingProcess, isFirstTimeUser, markUserAsReturning, activeProject]);
+  }, [activeConversationId, addMessage, aiService, currentMode, createStep, researchStep, activeConversation, conversations, showThinkingProcess, isFirstTimeUser, markUserAsReturning, activeProject]);
 
   // Handle tutorial choice
   const handleTutorialChoice = useCallback(async (choice: 'tutorial' | 'continue') => {
@@ -623,11 +592,10 @@ When the user asks about their project memories or notes, reference ONLY the con
         }));
       }
 
-      // Reset onboarding states
-      setCurrentMode(null);
-      setBuildStep(0);
-      setCreateStep(0);
-      setResearchStep(0);
+          // Reset onboarding states
+    setCurrentMode(null);
+    setCreateStep(0);
+    setResearchStep(0);
 
       // Ensure we're in the right view
       if (currentView !== 'project') {
@@ -699,7 +667,6 @@ When the user asks about their project memories or notes, reference ONLY the con
   const handleSelectConversation = useCallback((id: string) => {
     setActiveConversationId(id);
     setCurrentMode(null);
-    setBuildStep(0);
     setCreateStep(0);
     setResearchStep(0);
   }, []);
@@ -821,7 +788,6 @@ When the user asks about their project memories or notes, reference ONLY the con
     setActiveProjectId(null);
     setActiveConversationId(null);
     setCurrentMode(null);
-    setBuildStep(0);
     setCreateStep(0);
     setResearchStep(0);
   }, []);
@@ -831,7 +797,6 @@ When the user asks about their project memories or notes, reference ONLY the con
     setActiveConversationId(null);
     setCurrentMode(null);
     setActiveProjectId(null);
-    setBuildStep(0);
     setCreateStep(0);
     setResearchStep(0);
   }, []);
@@ -1090,7 +1055,6 @@ When the user asks about their project memories or notes, reference ONLY the con
     }
     setActiveConversationId(conversationId);
     setCurrentMode(null);
-    setBuildStep(0);
     setCreateStep(0);
     setResearchStep(0);
   }, []);
@@ -1401,8 +1365,6 @@ Remember: Return ONLY the JSON object, no explanations or additional text.`;
                 ? "Type your choice or continue normally..."
                 : currentMode === 'research' && researchStep === 1
                 ? "Choose research guidance or continue normally..."
-                : currentMode === 'build' && buildStep === 1 
-                ? "What kind of project are you trying to build?"
                 : "Write your message here"
             }
           />

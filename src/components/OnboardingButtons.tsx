@@ -20,18 +20,11 @@ const OnboardingButtons: React.FC<OnboardingButtonsProps> = ({ onSelectMode }) =
       description: 'Deep dive into subjects with comprehensive analysis',
       icon: '📚',
       bgColor: 'bg-white hover:bg-gray-50'
-    },
-    {
-      mode: 'build' as OnboardingMode,
-      title: 'Build a workflow',
-      description: 'Learn how to prompt effectively for building projects',
-      icon: '🏗️',
-      bgColor: 'bg-white hover:bg-gray-50'
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
       {buttons.map((button) => (
         <button
           key={button.mode}

@@ -39,7 +39,7 @@ export interface ProjectMemory {
   updatedAt: Date;
 }
 
-export type OnboardingMode = 'create' | 'research' | 'build' | null;
+export type OnboardingMode = 'create' | 'research' | null;
 
 export type ContextType = 
   | 'development'
