@@ -139,3 +139,57 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ---
 
 Built with ❤️ as a prototype for intelligent AI assistance.
+
+## 🔑 Environment Setup
+
+### Local Development
+
+1. **Copy the environment template:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Get your OpenRouter API key:**
+   - Visit [OpenRouter.ai](https://openrouter.ai/)
+   - Sign up/login and generate an API key
+   - The key should start with `sk-or-v1-...`
+
+3. **Configure your `.env` file:**
+   ```bash
+   # Replace 'your_api_key_here' with your actual API key
+   REACT_APP_OPENROUTER_API_KEY=sk-or-v1-your-actual-key-here
+   
+   # Optional: Enable debug logging
+   REACT_APP_DEBUG=false
+   ```
+
+### Vercel Deployment
+
+1. **Set Environment Variables in Vercel:**
+   - Go to your Vercel project dashboard
+   - Navigate to **Settings** → **Environment Variables**
+   - Add: `REACT_APP_OPENROUTER_API_KEY` with your actual API key
+   - Set Environment to **Production** (and Preview if needed)
+
+2. **Redeploy:**
+   - Push your changes to trigger automatic deployment
+   - Or manually redeploy from Vercel dashboard
+
+### Security Notes
+
+- ✅ **`.env`** files are properly ignored by git
+- ✅ **`.env.example`** is tracked as a template (no secrets)
+- ✅ **Real API keys** should NEVER be committed to git
+- ✅ **Vercel environment variables** are stored securely
+
+### Troubleshooting
+
+**If you see "Using mock AI service":**
+- Check your `.env` file has the correct API key
+- Restart your development server: `npm start`
+- Verify the key is not the placeholder `your_api_key_here`
+
+**If Vercel deployment fails:**
+- Check environment variables are set for "Production"
+- Verify API key is valid and not expired
+- Check browser console for 401/403 errors
