@@ -351,12 +351,52 @@ function App() {
         // If they type instead, just continue normally
         response = "Perfect! I'm here to help you dive deep into any topic you're curious about. Whether you need help with academic research, market analysis, fact-checking, or any other research task - just let me know what you'd like to explore!\n\nWhat would you like to research today?";
         setResearchStep(2); // Move to normal conversation mode
-      } else if (currentMode === 'build' && buildStep <= 2) {
-        // Pass full conversation history for context
+      } else if (currentMode === 'build' && buildStep === 1) {
+        // Only use structured response for first build step
         const conversationMessages = activeConversation?.messages || [];
         const fullHistory = [...conversationMessages, userMessage];
         response = await aiService.getBuildOnboardingResponse(content, buildStep, fullHistory);
-        setBuildStep(prev => prev + 1);
+        setBuildStep(2);
+      } else if ((currentMode === 'create' && createStep >= 2) || 
+                 (currentMode === 'research' && researchStep >= 2) || 
+                 (currentMode === 'build' && buildStep >= 2)) {
+        // After first tutorial response, transition to natural conversation with thinking process
+        const conversationMessages = activeConversation?.messages || [];
+        let contextMessages = [...conversationMessages, userMessage];
+        
+        // Check if this conversation is in a project and include project memories
+        if (activeConversation?.projectId && activeProject?.memories && activeProject.memories.length > 0) {
+          const memoryContext = activeProject.memories
+            .map(memory => `**${memory.title}**\n${memory.content}`)
+            .join('\n\n---\n\n');
+            
+          const systemContextMessage: Message = {
+            id: 'system-context',
+            content: `You are Smart Potato AI assistant. The user is working in a project and has saved the following information as project memories. ONLY reference these actual memories, do not make up or hallucinate any information:
+
+ACTUAL PROJECT MEMORIES:
+---
+${memoryContext}
+---
+
+When the user asks about their project memories or notes, reference ONLY the content above. If they ask for something not in these memories, say you don't see that specific information in their saved memories.`,
+            sender: 'ai',
+            timestamp: new Date()
+          };
+          
+          contextMessages = [systemContextMessage, ...conversationMessages, userMessage];
+        }
+        
+        // Use natural conversation with thinking process
+        const result = await aiService.sendMessageWithThinking(contextMessages, showThinkingProcess, activeProject?.context);
+        response = result.response;
+        thinkingProcessContent = result.thinking;
+        
+        // Clear the tutorial mode after natural response - user can now chat normally
+        setCurrentMode(null);
+        setBuildStep(0);
+        setCreateStep(0);
+        setResearchStep(0);
       } else {
         const conversationMessages = activeConversation?.messages || [];
         
@@ -476,7 +516,10 @@ When the user asks about their project memories or notes, reference ONLY the con
         thinkingProcess: thinkingProcessContent
       };
       addMessage(activeConversationId, aiMessage);
-      setCreateStep(2); // Move to normal conversation mode
+      
+      // After tutorial response, clear mode to enable natural conversation
+      setCurrentMode(null);
+      setCreateStep(0);
     } catch (error) {
       console.error('Error handling tutorial choice:', error);
     } finally {
@@ -528,7 +571,10 @@ When the user asks about their project memories or notes, reference ONLY the con
         thinkingProcess: thinkingProcessContent
       };
       addMessage(activeConversationId, aiMessage);
-      setResearchStep(2); // Move to normal conversation mode
+      
+      // After tutorial response, clear mode to enable natural conversation
+      setCurrentMode(null);
+      setResearchStep(0);
     } catch (error) {
       console.error('Error handling research choice:', error);
     } finally {
@@ -1351,18 +1397,12 @@ Remember: Return ONLY the JSON object, no explanations or additional text.`;
             onAddToProject={addConversationsToProject}
             onUpdateTitle={updateConversationTitle}
             placeholder={
-              currentMode === 'create' 
-                ? createStep === 1 
-                  ? "Type your choice or continue normally..."
-                  : "Write your message here"
-                : currentMode === 'research'
-                ? researchStep === 1
-                  ? "Choose research guidance or continue normally..."
-                  : "Write your message here"
-                : currentMode === 'build' 
-                ? buildStep === 1 
-                  ? "What kind of project are you trying to build?"
-                  : "Continue the conversation..."
+              currentMode === 'create' && createStep === 1 
+                ? "Type your choice or continue normally..."
+                : currentMode === 'research' && researchStep === 1
+                ? "Choose research guidance or continue normally..."
+                : currentMode === 'build' && buildStep === 1 
+                ? "What kind of project are you trying to build?"
                 : "Write your message here"
             }
           />
