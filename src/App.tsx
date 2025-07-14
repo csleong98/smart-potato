@@ -20,7 +20,6 @@ function App() {
   const [currentMode, setCurrentMode] = useState<OnboardingMode>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
-  const [buildStep, setBuildStep] = useState(0);
   const [createStep, setCreateStep] = useState(0);
   const [researchStep, setResearchStep] = useState(0);
   const [showThinkingProcess, setShowThinkingProcess] = useState(true);
@@ -107,14 +106,12 @@ function App() {
       if (currentView === 'project') {
         setActiveConversationId(null);
         setCurrentMode(null);
-        setBuildStep(0);
         setCreateStep(0);
         setResearchStep(0);
       } else {
         setCurrentView('chat');
         setActiveConversationId(null);
         setCurrentMode(null);
-        setBuildStep(0);
         setCreateStep(0);
         setResearchStep(0);
         setActiveProjectId(null);
@@ -161,7 +158,6 @@ function App() {
 
     // Reset onboarding states
     setCurrentMode(null);
-    setBuildStep(0);
     setCreateStep(0);
     setResearchStep(0);
 
@@ -197,7 +193,6 @@ function App() {
     if (activeConversationId === conversationId) {
       setActiveConversationId(null);
       setCurrentMode(null);
-      setBuildStep(0);
       setCreateStep(0);
       setResearchStep(0);
     }
@@ -271,25 +266,7 @@ function App() {
       addMessage(newConversation.id, aiMessage);
       setCreateStep(1); // Set to step 1 to show choice buttons
     }
-    // Handle Build workflow specifically
-    else if (mode === 'build') {
-      setIsLoading(true);
-      try {
-        const response = await aiService.getBuildOnboardingResponse('', 0);
-        const aiMessage: Message = {
-          id: uuidv4(),
-          content: response,
-          sender: 'ai',
-          timestamp: new Date()
-        };
-        addMessage(newConversation.id, aiMessage);
-        setBuildStep(1);
-      } catch (error) {
-        console.error('Error in build onboarding:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+
     // Handle Research workflow specifically
     else if (mode === 'research') {
       // Use fixed message for research tutorial intro
@@ -351,12 +328,44 @@ function App() {
         // If they type instead, just continue normally
         response = "Perfect! I'm here to help you dive deep into any topic you're curious about. Whether you need help with academic research, market analysis, fact-checking, or any other research task - just let me know what you'd like to explore!\n\nWhat would you like to research today?";
         setResearchStep(2); // Move to normal conversation mode
-      } else if (currentMode === 'build' && buildStep <= 2) {
-        // Pass full conversation history for context
+      } else if ((currentMode === 'create' && createStep >= 2) || 
+                 (currentMode === 'research' && researchStep >= 2)) {
+        // After first tutorial response, transition to natural conversation with thinking process
         const conversationMessages = activeConversation?.messages || [];
-        const fullHistory = [...conversationMessages, userMessage];
-        response = await aiService.getBuildOnboardingResponse(content, buildStep, fullHistory);
-        setBuildStep(prev => prev + 1);
+        let contextMessages = [...conversationMessages, userMessage];
+        
+        // Check if this conversation is in a project and include project memories
+        if (activeConversation?.projectId && activeProject?.memories && activeProject.memories.length > 0) {
+          const memoryContext = activeProject.memories
+            .map(memory => `**${memory.title}**\n${memory.content}`)
+            .join('\n\n---\n\n');
+            
+          const systemContextMessage: Message = {
+            id: 'system-context',
+            content: `You are Smart Potato AI assistant. The user is working in a project and has saved the following information as project memories. ONLY reference these actual memories, do not make up or hallucinate any information:
+
+ACTUAL PROJECT MEMORIES:
+---
+${memoryContext}
+---
+
+When the user asks about their project memories or notes, reference ONLY the content above. If they ask for something not in these memories, say you don't see that specific information in their saved memories.`,
+            sender: 'ai',
+            timestamp: new Date()
+          };
+          
+          contextMessages = [systemContextMessage, ...conversationMessages, userMessage];
+        }
+        
+        // Use natural conversation with thinking process
+        const result = await aiService.sendMessageWithThinking(contextMessages, showThinkingProcess, activeProject?.context);
+        response = result.response;
+        thinkingProcessContent = result.thinking;
+        
+        // Clear the tutorial mode after natural response - user can now chat normally
+        setCurrentMode(null);
+        setCreateStep(0);
+        setResearchStep(0);
       } else {
         const conversationMessages = activeConversation?.messages || [];
         
@@ -429,7 +438,7 @@ When the user asks about their project memories or notes, reference ONLY the con
     } finally {
       setIsLoading(false);
     }
-  }, [activeConversationId, addMessage, aiService, currentMode, createStep, researchStep, buildStep, activeConversation, conversations, showThinkingProcess, isFirstTimeUser, markUserAsReturning, activeProject]);
+  }, [activeConversationId, addMessage, aiService, currentMode, createStep, researchStep, activeConversation, conversations, showThinkingProcess, isFirstTimeUser, markUserAsReturning, activeProject]);
 
   // Handle tutorial choice
   const handleTutorialChoice = useCallback(async (choice: 'tutorial' | 'continue') => {
@@ -476,7 +485,10 @@ When the user asks about their project memories or notes, reference ONLY the con
         thinkingProcess: thinkingProcessContent
       };
       addMessage(activeConversationId, aiMessage);
-      setCreateStep(2); // Move to normal conversation mode
+      
+      // After tutorial response, clear mode to enable natural conversation
+      setCurrentMode(null);
+      setCreateStep(0);
     } catch (error) {
       console.error('Error handling tutorial choice:', error);
     } finally {
@@ -528,7 +540,10 @@ When the user asks about their project memories or notes, reference ONLY the con
         thinkingProcess: thinkingProcessContent
       };
       addMessage(activeConversationId, aiMessage);
-      setResearchStep(2); // Move to normal conversation mode
+      
+      // After tutorial response, clear mode to enable natural conversation
+      setCurrentMode(null);
+      setResearchStep(0);
     } catch (error) {
       console.error('Error handling research choice:', error);
     } finally {
@@ -577,11 +592,10 @@ When the user asks about their project memories or notes, reference ONLY the con
         }));
       }
 
-      // Reset onboarding states
-      setCurrentMode(null);
-      setBuildStep(0);
-      setCreateStep(0);
-      setResearchStep(0);
+          // Reset onboarding states
+    setCurrentMode(null);
+    setCreateStep(0);
+    setResearchStep(0);
 
       // Ensure we're in the right view
       if (currentView !== 'project') {
@@ -653,7 +667,6 @@ When the user asks about their project memories or notes, reference ONLY the con
   const handleSelectConversation = useCallback((id: string) => {
     setActiveConversationId(id);
     setCurrentMode(null);
-    setBuildStep(0);
     setCreateStep(0);
     setResearchStep(0);
   }, []);
@@ -775,7 +788,6 @@ When the user asks about their project memories or notes, reference ONLY the con
     setActiveProjectId(null);
     setActiveConversationId(null);
     setCurrentMode(null);
-    setBuildStep(0);
     setCreateStep(0);
     setResearchStep(0);
   }, []);
@@ -785,7 +797,6 @@ When the user asks about their project memories or notes, reference ONLY the con
     setActiveConversationId(null);
     setCurrentMode(null);
     setActiveProjectId(null);
-    setBuildStep(0);
     setCreateStep(0);
     setResearchStep(0);
   }, []);
@@ -1044,7 +1055,6 @@ When the user asks about their project memories or notes, reference ONLY the con
     }
     setActiveConversationId(conversationId);
     setCurrentMode(null);
-    setBuildStep(0);
     setCreateStep(0);
     setResearchStep(0);
   }, []);
@@ -1351,18 +1361,10 @@ Remember: Return ONLY the JSON object, no explanations or additional text.`;
             onAddToProject={addConversationsToProject}
             onUpdateTitle={updateConversationTitle}
             placeholder={
-              currentMode === 'create' 
-                ? createStep === 1 
-                  ? "Type your choice or continue normally..."
-                  : "Write your message here"
-                : currentMode === 'research'
-                ? researchStep === 1
-                  ? "Choose research guidance or continue normally..."
-                  : "Write your message here"
-                : currentMode === 'build' 
-                ? buildStep === 1 
-                  ? "What kind of project are you trying to build?"
-                  : "Continue the conversation..."
+              currentMode === 'create' && createStep === 1 
+                ? "Type your choice or continue normally..."
+                : currentMode === 'research' && researchStep === 1
+                ? "Choose research guidance or continue normally..."
                 : "Write your message here"
             }
           />
