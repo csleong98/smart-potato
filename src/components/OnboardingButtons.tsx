@@ -11,15 +11,13 @@ const OnboardingButtons: React.FC<OnboardingButtonsProps> = ({ onSelectMode }) =
       mode: 'create' as OnboardingMode,
       title: 'Create something',
       description: 'Build creative projects, apps, or content with AI assistance',
-      icon: '✨',
-      bgColor: 'bg-white hover:bg-gray-50'
+      icon: '✨'
     },
     {
       mode: 'research' as OnboardingMode,
       title: 'Research about a topic',
       description: 'Deep dive into subjects with comprehensive analysis',
-      icon: '📚',
-      bgColor: 'bg-white hover:bg-gray-50'
+      icon: '📚'
     }
   ];
 
@@ -29,17 +27,17 @@ const OnboardingButtons: React.FC<OnboardingButtonsProps> = ({ onSelectMode }) =
         <button
           key={button.mode}
           onClick={() => onSelectMode(button.mode)}
-          className={`${button.bgColor} p-6 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-gray-300 hover:scale-105 text-left group`}
+          className="bg-white hover:bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors text-left"
         >
-          <div className="flex items-start space-x-4">
-            <div className="text-3xl group-hover:scale-110 transition-transform duration-300">
+          <div className="flex items-start space-x-3">
+            <div className="text-2xl text-gray-600">
               {button.icon}
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+              <h3 className="text-base font-medium text-gray-800 mb-1">
                 {button.title}
               </h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
+              <p className="text-gray-600 text-sm">
                 {button.description}
               </p>
             </div>

@@ -919,11 +919,6 @@ When the user asks about their project memories or notes, reference ONLY the con
     return icons[type] || '🔗';
   };
 
-  // Handle tutorial access from chat interface
-  const handleAccessTutorials = useCallback(() => {
-    setShowTutorialModal(true);
-  }, []);
-
   // Handle tutorial modal mode selection
   const handleTutorialModalSelection = useCallback((mode: OnboardingMode) => {
     setShowTutorialModal(false);
@@ -1355,7 +1350,7 @@ Remember: Return ONLY the JSON object, no explanations or additional text.`;
             onResearchChoice={handleResearchChoice}
             showThinkingProcess={showThinkingProcess}
             onToggleThinkingProcess={setShowThinkingProcess}
-            onAccessTutorials={handleAccessTutorials}
+
             onSetReminder={handleSetReminder}
             projects={projects}
             onAddToProject={addConversationsToProject}
