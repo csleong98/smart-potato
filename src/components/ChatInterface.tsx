@@ -140,13 +140,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <div className="mb-4 flex gap-3 justify-center">
             <button
               onClick={() => onTutorialChoice('tutorial')}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-2xl transition-colors duration-200 font-medium"
+              className="border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg transition-colors font-medium text-sm"
             >
               Yes, teach me prompting
             </button>
             <button
               onClick={() => onTutorialChoice('continue')}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-2xl transition-colors duration-200 font-medium"
+              className="border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg transition-colors font-medium text-sm"
             >
               No, continue normally
             </button>
@@ -158,31 +158,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-4xl mx-auto">
             <button
               onClick={() => onResearchChoice('Academic research techniques')}
-              className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-2xl transition-colors duration-200 font-medium text-sm"
+              className="border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg transition-colors font-medium text-sm"
             >
               Academic research techniques
             </button>
             <button
               onClick={() => onResearchChoice('Market research methods')}
-              className="bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-2xl transition-colors duration-200 font-medium text-sm"
+              className="border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg transition-colors font-medium text-sm"
             >
               Market research methods
             </button>
             <button
               onClick={() => onResearchChoice('Technical research strategies')}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-2xl transition-colors duration-200 font-medium text-sm"
+              className="border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg transition-colors font-medium text-sm"
             >
               Technical research strategies
             </button>
             <button
               onClick={() => onResearchChoice('Fact-checking approaches')}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-3 rounded-2xl transition-colors duration-200 font-medium text-sm"
+              className="border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg transition-colors font-medium text-sm"
             >
               Fact-checking approaches
             </button>
             <button
               onClick={() => onResearchChoice('Continue normally')}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-3 rounded-2xl transition-colors duration-200 font-medium text-sm sm:col-span-2 lg:col-span-1"
+              className="border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg transition-colors font-medium text-sm sm:col-span-2 lg:col-span-1"
             >
               Continue normally
             </button>
