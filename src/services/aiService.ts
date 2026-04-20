@@ -1,7 +1,7 @@
 import { Message } from '../types';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const MODEL_NAME = 'deepseek/deepseek-r1:free';
+const MODEL_NAME = 'openrouter/free';
 
 export class AIService {
   private apiKey: string;
