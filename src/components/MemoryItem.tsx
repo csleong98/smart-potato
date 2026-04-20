@@ -196,8 +196,11 @@ const MemoryItem: React.FC<MemoryItemProps> = ({
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
+                // eslint-disable-next-line jsx-a11y/heading-has-content
                 h1: ({node, ...props}) => <h1 className="text-lg font-bold mb-2 mt-4 first:mt-0" {...props} />,
+                // eslint-disable-next-line jsx-a11y/heading-has-content
                 h2: ({node, ...props}) => <h2 className="text-base font-bold mb-2 mt-3 first:mt-0" {...props} />,
+                // eslint-disable-next-line jsx-a11y/heading-has-content
                 h3: ({node, ...props}) => <h3 className="text-sm font-bold mb-1 mt-2 first:mt-0" {...props} />,
                 p: ({node, ...props}) => <p className="mb-3 last:mb-0 text-gray-700 leading-relaxed" {...props} />,
                 strong: ({node, ...props}) => <strong className="font-semibold text-gray-900" {...props} />,
@@ -221,9 +224,10 @@ const MemoryItem: React.FC<MemoryItemProps> = ({
                 blockquote: ({node, ...props}) => (
                   <blockquote className="border-l-3 border-gray-300 pl-3 mb-3 italic text-gray-600" {...props} />
                 ),
-                a: ({node, ...props}) => (
-                  <a className="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer" {...props} />
-                ),
+                a: ({node, ...props}) => {
+                  // eslint-disable-next-line jsx-a11y/anchor-has-content
+                  return <a className="text-blue-600 hover:text-blue-800 underline" target="_blank" rel="noopener noreferrer" {...props} />;
+                },
               }}
             >
               {memory.content}

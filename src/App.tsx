@@ -288,7 +288,7 @@ function App() {
       };
       addMessage(newConversation.id, aiMessage);
     }
-  }, [addMessage, aiService, activeProjectId]);
+  }, [addMessage, activeProjectId]);
 
   // Handle message sending
   const handleSendMessage = useCallback(async (content: string) => {
@@ -438,7 +438,7 @@ When the user asks about their project memories or notes, reference ONLY the con
     } finally {
       setIsLoading(false);
     }
-  }, [activeConversationId, addMessage, aiService, currentMode, createStep, researchStep, activeConversation, conversations, showThinkingProcess, isFirstTimeUser, markUserAsReturning, activeProject]);
+  }, [activeConversationId, addMessage, aiService, currentMode, createStep, researchStep, activeConversation, showThinkingProcess, isFirstTimeUser, markUserAsReturning, activeProject]);
 
   // Handle tutorial choice
   const handleTutorialChoice = useCallback(async (choice: 'tutorial' | 'continue') => {

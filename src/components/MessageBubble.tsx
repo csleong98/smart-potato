@@ -38,8 +38,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               remarkPlugins={[remarkGfm]}
               components={{
                 // Headers
+                // eslint-disable-next-line jsx-a11y/heading-has-content
                 h1: ({node, ...props}) => <h1 className="text-lg font-bold mb-2 mt-1" {...props} />,
+                // eslint-disable-next-line jsx-a11y/heading-has-content
                 h2: ({node, ...props}) => <h2 className="text-base font-bold mb-2 mt-1" {...props} />,
+                // eslint-disable-next-line jsx-a11y/heading-has-content
                 h3: ({node, ...props}) => <h3 className="text-sm font-bold mb-1 mt-1" {...props} />,
                 
                 // Paragraphs
@@ -87,11 +90,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                 ),
                 
                 // Links
-                a: ({node, ...props}) => (
-                  <a className={`underline hover:no-underline ${
+                a: ({node, ...props}) => {
+                  // eslint-disable-next-line jsx-a11y/anchor-has-content
+                  return <a className={`underline hover:no-underline ${
                     isUser ? 'text-blue-200 hover:text-white' : 'text-blue-600 hover:text-blue-800'
-                  }`} target="_blank" rel="noopener noreferrer" {...props} />
-                ),
+                  }`} target="_blank" rel="noopener noreferrer" {...props} />;
+                },
               }}
             >
               {message.content}
@@ -123,8 +127,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
+                        // eslint-disable-next-line jsx-a11y/heading-has-content
                         h1: ({node, ...props}) => <h1 className="text-sm font-bold mb-1 mt-1" {...props} />,
+                        // eslint-disable-next-line jsx-a11y/heading-has-content
                         h2: ({node, ...props}) => <h2 className="text-sm font-bold mb-1 mt-1" {...props} />,
+                        // eslint-disable-next-line jsx-a11y/heading-has-content
                         h3: ({node, ...props}) => <h3 className="text-xs font-bold mb-1 mt-1" {...props} />,
                         p: ({node, ...props}) => <p className="mb-1 last:mb-0" {...props} />,
                         strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
